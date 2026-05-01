@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { findOrCreateGoogleUser } from "@/lib/authStore";
+import { getRequestUrl } from "@/lib/requestOrigin";
 import { setSessionCookie } from "@/lib/session";
 
 const googleTokenEndpoint = "https://oauth2.googleapis.com/token";
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
 
   if (!code || !state || !savedState || state !== savedState) {
     return NextResponse.redirect(
-      new URL("/auth/login?error=google_state", request.url),
+      getRequestUrl(request, "/auth/login?error=google_state"),
     );
   }
 
@@ -38,11 +39,14 @@ export async function GET(request: Request) {
 
   if (!clientId || !clientSecret) {
     return NextResponse.redirect(
-      new URL("/auth/login?error=google_not_configured", request.url),
+      getRequestUrl(request, "/auth/login?error=google_not_configured"),
     );
   }
 
-  const redirectUri = new URL("/api/auth/google/callback", request.url).toString();
+  const redirectUri = getRequestUrl(
+    request,
+    "/api/auth/google/callback",
+  ).toString();
   const tokenResponse = await fetch(googleTokenEndpoint, {
     method: "POST",
     headers: {
@@ -60,7 +64,7 @@ export async function GET(request: Request) {
 
   if (!tokenResponse.ok || !tokenData.access_token) {
     return NextResponse.redirect(
-      new URL("/auth/login?error=google_token", request.url),
+      getRequestUrl(request, "/auth/login?error=google_token"),
     );
   }
 
@@ -78,7 +82,7 @@ export async function GET(request: Request) {
     googleUser.email_verified === false
   ) {
     return NextResponse.redirect(
-      new URL("/auth/login?error=google_profile", request.url),
+      getRequestUrl(request, "/auth/login?error=google_profile"),
     );
   }
 
@@ -87,7 +91,7 @@ export async function GET(request: Request) {
     name: googleUser.name ?? googleUser.email.split("@")[0],
     sub: googleUser.sub,
   });
-  const response = NextResponse.redirect(new URL("/", request.url));
+  const response = NextResponse.redirect(getRequestUrl(request, "/"));
 
   response.cookies.set(googleStateCookie, "", {
     httpOnly: true,

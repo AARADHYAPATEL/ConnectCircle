@@ -1,5 +1,10 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
+import {
+  getRequestHost,
+  getRequestUrl,
+  isPrivateNetworkHost,
+} from "@/lib/requestOrigin";
 
 const googleAuthorizationEndpoint =
   "https://accounts.google.com/o/oauth2/v2/auth";
@@ -8,16 +13,30 @@ const googleStateCookie = "connectcircle_google_state";
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const authMode = url.searchParams.get("mode") === "register" ? "register" : "login";
+  const authPath = `/auth/${authMode}`;
+  const host = getRequestHost(request);
+
+  if (host !== "localhost" && host !== "127.0.0.1" && isPrivateNetworkHost(host)) {
+    return NextResponse.redirect(
+      getRequestUrl(request, `${authPath}?error=google_private_ip`),
+    );
+  }
+
   const clientId = process.env.GOOGLE_CLIENT_ID;
 
   if (!clientId) {
     return NextResponse.redirect(
-      new URL("/auth/login?error=google_not_configured", request.url),
+      getRequestUrl(request, `${authPath}?error=google_not_configured`),
     );
   }
 
   const state = randomBytes(24).toString("hex");
-  const redirectUri = new URL("/api/auth/google/callback", request.url).toString();
+  const redirectUri = getRequestUrl(
+    request,
+    "/api/auth/google/callback",
+  ).toString();
   const authorizationUrl = new URL(googleAuthorizationEndpoint);
 
   authorizationUrl.searchParams.set("client_id", clientId);

@@ -1,7 +1,5 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LogoutButton } from "@/components/auth/LogoutButton";
-import { BrandLogo } from "@/components/brand/BrandLogo";
+import { AppHeader } from "@/components/layout/AppHeader";
 import { MoodEntryEditor } from "@/components/mood/MoodEntryEditor";
 import { getCurrentUser } from "@/lib/session";
 
@@ -23,21 +21,7 @@ export default async function EditMoodEntryPage({
 
   return (
     <main className="min-h-screen">
-      <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-5">
-        <BrandLogo />
-        <Link
-          className="btn btn-secondary btn-sm"
-          href="/mood/entries"
-        >
-          My entries
-        </Link>
-        <div className="flex items-center gap-3">
-          <span className="hidden text-sm font-semibold text-slate-600 sm:inline">
-            @{user.username}
-          </span>
-          <LogoutButton />
-        </div>
-      </header>
+      <AppHeader activeSection="reflect" maxWidth="5xl" username={user.username} />
 
       <section className="mx-auto grid w-full max-w-5xl gap-8 px-6 py-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
         <div>

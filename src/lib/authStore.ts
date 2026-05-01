@@ -57,6 +57,10 @@ function normalizeUsername(username: string) {
   return username.trim();
 }
 
+function normalizeUsernameKey(username: string) {
+  return normalizeUsername(username).toLowerCase();
+}
+
 function slugifyUsername(value: string) {
   const slug = value
     .trim()
@@ -103,6 +107,7 @@ async function writeUsers(users: UserAccount[]) {
 
 export async function createUser({ username, email, password }: CreateUserInput) {
   const cleanUsername = normalizeUsername(username);
+  const cleanUsernameKey = normalizeUsernameKey(username);
   const cleanEmail = normalizeEmail(email);
 
   if (cleanUsername.length < 3 || cleanUsername.length > 24) {
@@ -143,9 +148,7 @@ export async function createUser({ username, email, password }: CreateUserInput)
   }
 
   if (
-    users.some(
-      (user) => user.username.toLowerCase() === cleanUsername.toLowerCase(),
-    )
+    users.some((user) => normalizeUsernameKey(user.username) === cleanUsernameKey)
   ) {
     return {
       error: "This username is already taken.",
@@ -247,10 +250,10 @@ export async function getUserById(userId: string) {
 }
 
 export async function getUserByUsername(username: string) {
-  const cleanUsername = normalizeUsername(username).toLowerCase();
+  const cleanUsernameKey = normalizeUsernameKey(username);
   const users = await readUsers();
   const user = users.find(
-    (currentUser) => currentUser.username.toLowerCase() === cleanUsername,
+    (currentUser) => normalizeUsernameKey(currentUser.username) === cleanUsernameKey,
   );
 
   return user ? toPublicUser(user) : null;
@@ -273,7 +276,9 @@ function isUserAccount(value: unknown): value is UserAccount {
 
 function createUniqueUsername(value: string, users: UserAccount[]) {
   const baseUsername = slugifyUsername(value).slice(0, 20);
-  const usedUsernames = new Set(users.map((user) => user.username.toLowerCase()));
+  const usedUsernames = new Set(
+    users.map((user) => normalizeUsernameKey(user.username)),
+  );
 
   if (!usedUsernames.has(baseUsername)) {
     return baseUsername;

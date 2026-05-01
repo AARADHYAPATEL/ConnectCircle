@@ -70,9 +70,10 @@ export function MoodCheckIn({ username }: MoodCheckInProps) {
     string[]
   >([]);
   const [supportNeed, setSupportNeed] =
-    useState<SupportNeed>("Open to talking");
+    useState<SupportNeed>("No advice needed");
   const [note, setNote] = useState("");
   const [savedCheckIn, setSavedCheckIn] = useState<SavedMoodEntry | null>(null);
+  const [isAddingDetails, setIsAddingDetails] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingCircles, setIsLoadingCircles] = useState(true);
   const [isLoadingFriends, setIsLoadingFriends] = useState(true);
@@ -260,9 +261,12 @@ export function MoodCheckIn({ username }: MoodCheckInProps) {
       setMoodText("");
       setSelectedSuggestion(null);
       setNote("");
+      setIntensity(3);
       setAudience(personalAudience);
       setSelectedCircleIds([]);
       setSelectedFriendUsernames([]);
+      setSupportNeed("No advice needed");
+      setIsAddingDetails(false);
     } catch {
       setError("Something went wrong while saving this check-in.");
     } finally {
@@ -285,9 +289,17 @@ export function MoodCheckIn({ username }: MoodCheckInProps) {
           >
             How are you feeling?
           </h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Type one feeling and save, or add details if you want the fuller
+            check-in.
+          </p>
         </div>
         <span className="rounded-md bg-teal-50 px-3 py-1 text-sm font-semibold text-teal-800">
-          {audience === personalAudience ? "Private" : "Shared mood"}
+          {isAddingDetails
+            ? audience === personalAudience
+              ? "Private"
+              : "Shared mood"
+            : "Quick check-in"}
         </span>
       </div>
 
@@ -339,198 +351,224 @@ export function MoodCheckIn({ username }: MoodCheckInProps) {
         </div>
       </fieldset>
 
-      <label className="mt-5 block text-sm font-semibold text-slate-700">
-        How strong does it feel?
-        <span className="ml-2 text-slate-500">{intensity}/5</span>
-        <input
-          className="mt-3 block w-full accent-teal-700"
-          max="5"
-          min="1"
-          onChange={(event) => setIntensity(Number(event.target.value))}
-          type="range"
-          value={intensity}
-        />
-      </label>
+      <button
+        aria-expanded={isAddingDetails}
+        className="btn btn-secondary mt-5 w-full"
+        onClick={() =>
+          setIsAddingDetails((currentIsAddingDetails) => !currentIsAddingDetails)
+        }
+        type="button"
+      >
+        {isAddingDetails ? "Hide details" : "Add details"}
+      </button>
 
-      <label className="mt-5 block text-sm font-semibold text-slate-700">
-        Support signal
-        <select
-          className="mt-2 w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-3 text-sm font-semibold text-slate-800 outline-none focus:border-teal-500 focus:bg-white"
-          onChange={(event) => setSupportNeed(event.target.value as SupportNeed)}
-          value={supportNeed}
-        >
-          {supportOptions.map((option) => (
-            <option key={option}>{option}</option>
-          ))}
-        </select>
-      </label>
+      {isAddingDetails ? (
+        <div className="mt-5 rounded-md border border-slate-200 bg-slate-50 p-4">
+          <label className="block text-sm font-semibold text-slate-700">
+            How strong does it feel?
+            <span className="ml-2 text-slate-500">{intensity}/5</span>
+            <input
+              className="mt-3 block w-full accent-teal-700"
+              max="5"
+              min="1"
+              onChange={(event) => setIntensity(Number(event.target.value))}
+              type="range"
+              value={intensity}
+            />
+          </label>
 
-      <fieldset className="mt-5 rounded-md border border-slate-200 bg-slate-50 p-4">
-        <legend className="text-sm font-semibold text-slate-800">
-          Share this check-in
-        </legend>
-        <div className="mt-3 grid gap-3">
-          {shareOptions.map((option) => {
-            const isSelected = audience === option.value;
-            const isDisabled =
-              ((option.value === "Circle feed" ||
-                option.value === "Chosen friends") &&
-                !hasFriends) ||
-              (option.value === "Selected circles" && !hasCircles);
+          <label className="mt-5 block text-sm font-semibold text-slate-700">
+            Support signal
+            <select
+              className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-sm font-semibold text-slate-800 outline-none focus:border-teal-500 focus:bg-white"
+              onChange={(event) =>
+                setSupportNeed(event.target.value as SupportNeed)
+              }
+              value={supportNeed}
+            >
+              {supportOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
+            </select>
+          </label>
 
-            return (
-              <label
-                className={`flex cursor-pointer gap-3 rounded-md border bg-white p-3 transition ${
-                  isSelected
-                    ? "border-teal-500 ring-2 ring-teal-100"
-                    : "border-slate-200 hover:border-teal-200"
-                } ${isDisabled ? "cursor-not-allowed opacity-60" : ""}`}
-                key={option.value}
-              >
-                <input
-                  checked={isSelected}
-                  className="mt-1 accent-teal-700"
-                  disabled={isDisabled}
-                  name="mood-audience"
-                  onChange={() => handleAudienceChange(option.value)}
-                  type="radio"
-                />
-                <span>
-                  <span className="block text-sm font-bold text-slate-950">
-                    {option.label}
-                  </span>
-                  <span className="mt-1 block text-sm leading-6 text-slate-600">
-                    {option.description}
-                  </span>
-                </span>
-              </label>
-            );
-          })}
-        </div>
-
-        {isLoadingFriends ? (
-          <p className="mt-3 text-sm font-semibold text-slate-500">
-            Loading friends...
-          </p>
-        ) : null}
-
-        {friendError ? (
-          <p className="mt-3 text-sm font-semibold text-rose-700">
-            {friendError}
-          </p>
-        ) : null}
-
-        {!isLoadingFriends && !friendError && !hasFriends ? (
-          <p className="mt-3 text-sm font-semibold text-slate-500">
-            Add accepted friends from Connections to share mood check-ins.
-          </p>
-        ) : null}
-
-        {isLoadingCircles ? (
-          <p className="mt-3 text-sm font-semibold text-slate-500">
-            Loading circles...
-          </p>
-        ) : null}
-
-        {circleError ? (
-          <p className="mt-3 text-sm font-semibold text-rose-700">
-            {circleError}
-          </p>
-        ) : null}
-
-        {isChoosingFriends && hasFriends ? (
-          <div className="mt-4">
-            <p className="text-sm font-semibold text-slate-700">
-              Choose friends
-            </p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {friendUsernames.map((friendUsername) => {
-                const isSelected =
-                  selectedFriendUsernames.includes(friendUsername);
+          <fieldset className="mt-5 rounded-md border border-slate-200 bg-white p-4">
+            <legend className="text-sm font-semibold text-slate-800">
+              Share this check-in
+            </legend>
+            <div className="mt-3 grid gap-3">
+              {shareOptions.map((option) => {
+                const isSelected = audience === option.value;
+                const isDisabled =
+                  ((option.value === "Circle feed" ||
+                    option.value === "Chosen friends") &&
+                    !hasFriends) ||
+                  (option.value === "Selected circles" && !hasCircles);
 
                 return (
                   <label
-                    className={`flex cursor-pointer items-center gap-3 rounded-md border p-3 text-sm font-bold transition ${
+                    className={`flex cursor-pointer gap-3 rounded-md border bg-white p-3 transition ${
                       isSelected
-                        ? "border-teal-500 bg-teal-50 text-teal-900"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-teal-200"
-                    }`}
-                    key={friendUsername}
-                  >
-                    <input
-                      checked={isSelected}
-                      className="accent-teal-700"
-                      onChange={() => toggleFriendSelection(friendUsername)}
-                      type="checkbox"
-                    />
-                    @{friendUsername}
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
-
-        {isChoosingCircles && hasCircles ? (
-          <div className="mt-4">
-            <p className="text-sm font-semibold text-slate-700">
-              Choose circles
-            </p>
-            <div className="mt-3 grid gap-2">
-              {circles.map((circle) => {
-                const isSelected = selectedCircleIds.includes(circle.id);
-
-                return (
-                  <label
-                    className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 text-sm transition ${
-                      isSelected
-                        ? "border-teal-500 bg-teal-50 text-teal-900"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-teal-200"
-                    }`}
-                    key={circle.id}
+                        ? "border-teal-500 ring-2 ring-teal-100"
+                        : "border-slate-200 hover:border-teal-200"
+                    } ${isDisabled ? "cursor-not-allowed opacity-60" : ""}`}
+                    key={option.value}
                   >
                     <input
                       checked={isSelected}
                       className="mt-1 accent-teal-700"
-                      onChange={() => toggleCircleSelection(circle.id)}
-                      type="checkbox"
+                      disabled={isDisabled}
+                      name="mood-audience"
+                      onChange={() => handleAudienceChange(option.value)}
+                      type="radio"
                     />
                     <span>
-                      <span className="block font-bold">{circle.name}</span>
-                      <span className="mt-1 block font-semibold text-slate-500">
-                        {circle.memberUsernames.length} members
+                      <span className="block text-sm font-bold text-slate-950">
+                        {option.label}
+                      </span>
+                      <span className="mt-1 block text-sm leading-6 text-slate-600">
+                        {option.description}
                       </span>
                     </span>
                   </label>
                 );
               })}
             </div>
+
+            {isLoadingFriends ? (
+              <p className="mt-3 text-sm font-semibold text-slate-500">
+                Loading friends...
+              </p>
+            ) : null}
+
+            {friendError ? (
+              <p className="mt-3 text-sm font-semibold text-rose-700">
+                {friendError}
+              </p>
+            ) : null}
+
+            {!isLoadingFriends && !friendError && !hasFriends ? (
+              <p className="mt-3 text-sm font-semibold text-slate-500">
+                Add accepted friends from Connections to share mood check-ins.
+              </p>
+            ) : null}
+
+            {isLoadingCircles ? (
+              <p className="mt-3 text-sm font-semibold text-slate-500">
+                Loading circles...
+              </p>
+            ) : null}
+
+            {circleError ? (
+              <p className="mt-3 text-sm font-semibold text-rose-700">
+                {circleError}
+              </p>
+            ) : null}
+
+            {isChoosingFriends && hasFriends ? (
+              <div className="mt-4">
+                <p className="text-sm font-semibold text-slate-700">
+                  Choose friends
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {friendUsernames.map((friendUsername) => {
+                    const isSelected =
+                      selectedFriendUsernames.includes(friendUsername);
+
+                    return (
+                      <label
+                        className={`flex cursor-pointer items-center gap-3 rounded-md border p-3 text-sm font-bold transition ${
+                          isSelected
+                            ? "border-teal-500 bg-teal-50 text-teal-900"
+                            : "border-slate-200 bg-white text-slate-700 hover:border-teal-200"
+                        }`}
+                        key={friendUsername}
+                      >
+                        <input
+                          checked={isSelected}
+                          className="accent-teal-700"
+                          onChange={() => toggleFriendSelection(friendUsername)}
+                          type="checkbox"
+                        />
+                        @{friendUsername}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            {isChoosingCircles && hasCircles ? (
+              <div className="mt-4">
+                <p className="text-sm font-semibold text-slate-700">
+                  Choose circles
+                </p>
+                <div className="mt-3 grid gap-2">
+                  {circles.map((circle) => {
+                    const isSelected = selectedCircleIds.includes(circle.id);
+
+                    return (
+                      <label
+                        className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 text-sm transition ${
+                          isSelected
+                            ? "border-teal-500 bg-teal-50 text-teal-900"
+                            : "border-slate-200 bg-white text-slate-700 hover:border-teal-200"
+                        }`}
+                        key={circle.id}
+                      >
+                        <input
+                          checked={isSelected}
+                          className="mt-1 accent-teal-700"
+                          onChange={() => toggleCircleSelection(circle.id)}
+                          type="checkbox"
+                        />
+                        <span>
+                          <span className="block font-bold">{circle.name}</span>
+                          <span className="mt-1 block font-semibold text-slate-500">
+                            {circle.memberUsernames.length} members
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+          </fieldset>
+
+          <label className="mt-5 block text-sm font-semibold text-slate-700">
+            Want to add more context?
+            <textarea
+              className="mt-2 min-h-28 w-full resize-none rounded-md border border-slate-300 bg-white p-3 text-sm text-slate-900 outline-none focus:border-teal-500 focus:bg-white"
+              maxLength={noteLimit}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="What happened, what you need, or anything you want to remember..."
+              value={note}
+            />
+          </label>
+          <div className="mt-1 text-right text-xs font-semibold text-slate-500">
+            {note.length}/{noteLimit}
           </div>
-        ) : null}
-      </fieldset>
+        </div>
+      ) : null}
 
-      <label className="mt-5 block text-sm font-semibold text-slate-700">
-        Want to add more context?
-        <textarea
-          className="mt-2 min-h-28 w-full resize-none rounded-md border border-slate-300 bg-slate-50 p-3 text-sm text-slate-900 outline-none focus:border-teal-500 focus:bg-white"
-          maxLength={noteLimit}
-          onChange={(event) => setNote(event.target.value)}
-          placeholder="What happened, what you need, or anything you want to remember..."
-          value={note}
-        />
-      </label>
-      <div className="mt-1 text-right text-xs font-semibold text-slate-500">
-        {note.length}/{noteLimit}
+      <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <Link className="btn btn-secondary sm:min-w-32" href="/">
+          Cancel
+        </Link>
+        <button
+          className="btn btn-primary sm:min-w-40"
+          disabled={!canSave}
+          onClick={handleSave}
+          type="button"
+        >
+          {isSaving
+            ? "Saving..."
+            : isAddingDetails
+              ? "Save check-in"
+              : "Save quick check-in"}
+        </button>
       </div>
-
-      <button
-        className="btn btn-primary mt-5 w-full"
-        disabled={!canSave}
-        onClick={handleSave}
-        type="button"
-      >
-        {isSaving ? "Saving..." : "Save check-in"}
-      </button>
 
       {error ? (
         <p className="mt-4 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-900">

@@ -87,7 +87,7 @@ export function AuthForm({ mode }: AuthFormProps) {
 
       <a
         className="btn btn-secondary mt-5 w-full gap-2"
-        href="/api/auth/google/start"
+        href={`/api/auth/google/start?mode=${mode}`}
       >
         <GoogleLogo />
         Continue with Google
@@ -211,6 +211,8 @@ function getGoogleErrorMessage(error: string | null) {
       return "Google did not return a valid sign-in token.";
     case "google_profile":
       return "Google did not return a verified email profile.";
+    case "google_private_ip":
+      return "Google sign-in does not work from a private WiFi IP. Use email and password for local testing, or use a public HTTPS preview URL.";
     default:
       return "";
   }

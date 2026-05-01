@@ -74,6 +74,11 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
       ),
     [summary.friends, username],
   );
+  const hasConnectionActivity =
+    summary.incomingRequests.length > 0 ||
+    summary.outgoingRequests.length > 0 ||
+    sortedFriends.length > 0 ||
+    summary.blockedUsers.length > 0;
 
   async function loadConnections() {
     const response = await fetch("/api/connections", {
@@ -332,7 +337,9 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
         </div>
       ) : null}
 
-      {!isLoading ? (
+      {!isLoading && !hasConnectionActivity ? <ConnectionEmptyGuide /> : null}
+
+      {!isLoading && hasConnectionActivity ? (
         <div className="mt-8 grid gap-5 lg:grid-cols-2 xl:grid-cols-4">
           <ConnectionList title="Incoming requests">
             {summary.incomingRequests.length === 0 ? (
@@ -461,6 +468,26 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
           </ConnectionList>
         </div>
       ) : null}
+    </section>
+  );
+}
+
+function ConnectionEmptyGuide() {
+  return (
+    <section className="mt-8 rounded-md border border-dashed border-teal-300 bg-teal-50 p-6 shadow-sm">
+      <p className="text-sm font-semibold uppercase tracking-normal text-teal-800">
+        First connection
+      </p>
+      <h2 className="mt-2 text-2xl font-bold text-slate-950">
+        Start with one trusted person.
+      </h2>
+      <p className="mt-3 max-w-2xl leading-7 text-slate-700">
+        Send a request by username. When they accept, they become available for
+        friend chat, circles, and shared wellness support.
+      </p>
+      <a className="btn btn-primary mt-5" href="#connection-username">
+        Enter a username
+      </a>
     </section>
   );
 }

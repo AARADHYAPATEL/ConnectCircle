@@ -105,6 +105,11 @@ export function CirclesPanel({ username }: CirclesPanelProps) {
   const trimmedName = name.trim();
   const trimmedJoinCircleName = joinCircleName.trim();
   const hasFriends = friendUsernames.length > 0;
+  const hasCircleActivity =
+    circles.length > 0 ||
+    discoverableCircles.length > 0 ||
+    incomingJoinRequests.length > 0 ||
+    outgoingJoinRequests.length > 0;
   const canCreate =
     trimmedName.length >= 2 &&
     trimmedName.length <= circleNameLimit &&
@@ -412,7 +417,10 @@ export function CirclesPanel({ username }: CirclesPanelProps) {
       ) : null}
 
       <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="motion-panel rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+        <div
+          className="motion-panel rounded-md border border-slate-200 bg-white p-5 shadow-sm"
+          id="new-circle"
+        >
           <h2 className="text-xl font-bold text-slate-950">New circle</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
             Choose accepted friends, name the circle, and its shared room opens
@@ -552,6 +560,10 @@ export function CirclesPanel({ username }: CirclesPanelProps) {
             </div>
           ) : null}
 
+          {!isLoading && !hasCircleActivity ? (
+            <CircleEmptyGuide hasFriends={hasFriends} />
+          ) : null}
+
           {!isLoading && incomingJoinRequests.length > 0 ? (
             <section>
               <h2 className="text-xl font-bold text-slate-950">
@@ -669,7 +681,7 @@ export function CirclesPanel({ username }: CirclesPanelProps) {
             </section>
           ) : null}
 
-          {!isLoading ? (
+          {!isLoading && hasCircleActivity ? (
             <section>
               <h2 className="text-xl font-bold text-slate-950">
                 Your circles
@@ -761,6 +773,47 @@ export function CirclesPanel({ username }: CirclesPanelProps) {
           ) : null}
         </div>
       </div>
+    </section>
+  );
+}
+
+function CircleEmptyGuide({ hasFriends }: { hasFriends: boolean }) {
+  if (!hasFriends) {
+    return (
+      <section className="rounded-md border border-dashed border-teal-300 bg-teal-50 p-6 shadow-sm">
+        <p className="text-sm font-semibold uppercase tracking-normal text-teal-800">
+          Groups start with trust
+        </p>
+        <h2 className="mt-2 text-2xl font-bold text-slate-950">
+          Add one friend before creating a group.
+        </h2>
+        <p className="mt-3 max-w-2xl leading-7 text-slate-700">
+          Circles are private shared rooms, so ConnectCircle starts them from
+          accepted friendships. Add a friend first, then come back to create a
+          small group.
+        </p>
+        <Link className="btn btn-primary mt-5" href="/social/connections">
+          Add a friend first
+        </Link>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-md border border-dashed border-teal-300 bg-teal-50 p-6 shadow-sm">
+      <p className="text-sm font-semibold uppercase tracking-normal text-teal-800">
+        First group
+      </p>
+      <h2 className="mt-2 text-2xl font-bold text-slate-950">
+        Create one small room.
+      </h2>
+      <p className="mt-3 max-w-2xl leading-7 text-slate-700">
+        Pick one or two accepted friends, give the circle a clear name, and
+        open a quieter space for shared check-ins and chat.
+      </p>
+      <a className="btn btn-primary mt-5" href="#new-circle">
+        Create a group
+      </a>
     </section>
   );
 }

@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { LogoutButton } from "@/components/auth/LogoutButton";
-import { BrandLogo } from "@/components/brand/BrandLogo";
+import { AppHeader } from "@/components/layout/AppHeader";
 
 type SocialPage =
   | "overview"
@@ -21,12 +20,12 @@ const socialLinks: Array<{
 }> = [
   {
     href: "/social",
-    label: "Overview",
+    label: "Start",
     page: "overview",
   },
   {
     href: "/social/connections",
-    label: "Connections",
+    label: "Requests",
     page: "connections",
   },
   {
@@ -36,12 +35,12 @@ const socialLinks: Array<{
   },
   {
     href: "/social/support",
-    label: "Support",
+    label: "Kind notes",
     page: "support",
   },
   {
     href: "/social/feed",
-    label: "Mood feed",
+    label: "Shared moods",
     page: "feed",
   },
 ];
@@ -52,29 +51,7 @@ export function SocialPageHeader({
 }: SocialPageHeaderProps) {
   return (
     <>
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
-        <BrandLogo />
-        <nav className="hidden items-center gap-6 text-sm font-medium text-slate-700 sm:flex">
-          <Link className="hover:text-slate-950" href="/mood/check-in">
-            Check in
-          </Link>
-          <Link className="hover:text-slate-950" href="/mood/entries">
-            My entries
-          </Link>
-          <Link className="hover:text-slate-950" href="/social">
-            Social
-          </Link>
-          <Link className="hover:text-slate-950" href="/circles">
-            Circles
-          </Link>
-        </nav>
-        <div className="flex items-center gap-3">
-          <span className="hidden text-sm font-semibold text-slate-600 sm:inline">
-            @{username}
-          </span>
-          <LogoutButton />
-        </div>
-      </header>
+      <AppHeader activeSection="friends" username={username} />
 
       <nav
         aria-label="Social sections"
