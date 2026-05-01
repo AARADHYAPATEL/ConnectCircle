@@ -1,0 +1,309 @@
+import { randomUUID } from "node:crypto";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { getFriendUsernames } from "@/lib/connectionStore";
+import {
+  chatMessageLimit,
+  isChatMessage,
+  type ChatMessage,
+  type ChatOverview,
+  type ChatThread,
+} from "@/lib/chatTypes";
+
+const dataDirectory = path.join(process.cwd(), ".data");
+const chatMessagesFile = path.join(dataDirectory, "chat-messages.json");
+
+type ChatThreadResult = {
+  error: string;
+  thread: ChatThread | null;
+};
+
+type SendChatMessageResult = {
+  error: string;
+  message: ChatMessage | null;
+};
+
+type ChatMessageMutationResult = {
+  error: string;
+  message: ChatMessage | null;
+};
+
+type DeleteChatMessageResult = {
+  error: string;
+};
+
+function areSameUser(firstUsername: string, secondUsername: string) {
+  return firstUsername.trim().toLowerCase() === secondUsername.trim().toLowerCase();
+}
+
+function isBetweenUsers(
+  message: ChatMessage,
+  firstUsername: string,
+  secondUsername: string,
+) {
+  return (
+    (areSameUser(message.fromUsername, firstUsername) &&
+      areSameUser(message.toUsername, secondUsername)) ||
+    (areSameUser(message.fromUsername, secondUsername) &&
+      areSameUser(message.toUsername, firstUsername))
+  );
+}
+
+async function readChatMessages() {
+  try {
+    const file = await fs.readFile(chatMessagesFile, "utf8");
+    const parsed: unknown = JSON.parse(file);
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.filter(isChatMessage);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+async function writeChatMessages(messages: ChatMessage[]) {
+  await fs.mkdir(dataDirectory, { recursive: true });
+
+  const temporaryFile = `${chatMessagesFile}.tmp`;
+  await fs.writeFile(temporaryFile, JSON.stringify(messages, null, 2), "utf8");
+  await fs.rename(temporaryFile, chatMessagesFile);
+}
+
+function sortMessagesAscending(messages: ChatMessage[]) {
+  return [...messages].sort(
+    (first, second) =>
+      new Date(first.createdAt).getTime() -
+      new Date(second.createdAt).getTime(),
+  );
+}
+
+function findAcceptedFriend(friendUsernames: string[], username: string) {
+  return friendUsernames.find((friendUsername) =>
+    areSameUser(friendUsername, username),
+  );
+}
+
+export async function getChatOverview(username: string): Promise<ChatOverview> {
+  const [friendUsernames, messages] = await Promise.all([
+    getFriendUsernames(username),
+    readChatMessages(),
+  ]);
+
+  const conversations = friendUsernames
+    .map((friendUsername) => {
+      const threadMessages = messages.filter((message) =>
+        isBetweenUsers(message, username, friendUsername),
+      );
+      const lastMessage = sortMessagesAscending(threadMessages).at(-1) ?? null;
+
+      return {
+        friendUsername,
+        lastMessage,
+      };
+    })
+    .sort((first, second) => {
+      if (!first.lastMessage && !second.lastMessage) {
+        return first.friendUsername.localeCompare(second.friendUsername);
+      }
+
+      if (!first.lastMessage) {
+        return 1;
+      }
+
+      if (!second.lastMessage) {
+        return -1;
+      }
+
+      return (
+        new Date(second.lastMessage.createdAt).getTime() -
+        new Date(first.lastMessage.createdAt).getTime()
+      );
+    });
+
+  return {
+    friends: friendUsernames,
+    conversations,
+  };
+}
+
+export async function getChatThread(
+  username: string,
+  friendUsername: string,
+): Promise<ChatThreadResult> {
+  const friendUsernames = await getFriendUsernames(username);
+  const acceptedFriendUsername = findAcceptedFriend(
+    friendUsernames,
+    friendUsername,
+  );
+
+  if (!acceptedFriendUsername) {
+    return {
+      error: "You can only chat with accepted friends.",
+      thread: null,
+    };
+  }
+
+  const messages = await readChatMessages();
+
+  return {
+    error: "",
+    thread: {
+      friendUsername: acceptedFriendUsername,
+      messages: sortMessagesAscending(
+        messages.filter((message) =>
+          isBetweenUsers(message, username, acceptedFriendUsername),
+        ),
+      ),
+    },
+  };
+}
+
+export async function sendChatMessage(
+  fromUsername: string,
+  toUsername: string,
+  message: string,
+): Promise<SendChatMessageResult> {
+  const cleanMessage = message.trim();
+
+  if (areSameUser(fromUsername, toUsername)) {
+    return {
+      error: "You cannot chat with yourself.",
+      message: null,
+    };
+  }
+
+  if (!cleanMessage) {
+    return {
+      error: "Message is required.",
+      message: null,
+    };
+  }
+
+  if (cleanMessage.length > chatMessageLimit) {
+    return {
+      error: `Message must be ${chatMessageLimit} characters or fewer.`,
+      message: null,
+    };
+  }
+
+  const friendUsernames = await getFriendUsernames(fromUsername);
+  const acceptedFriendUsername = findAcceptedFriend(friendUsernames, toUsername);
+
+  if (!acceptedFriendUsername) {
+    return {
+      error: "You can only chat with accepted friends.",
+      message: null,
+    };
+  }
+
+  const chatMessage: ChatMessage = {
+    id: randomUUID(),
+    fromUsername,
+    toUsername: acceptedFriendUsername,
+    message: cleanMessage,
+    createdAt: new Date().toISOString(),
+  };
+  const messages = await readChatMessages();
+
+  await writeChatMessages([chatMessage, ...messages]);
+
+  return {
+    error: "",
+    message: chatMessage,
+  };
+}
+
+export async function editChatMessage(
+  username: string,
+  messageId: string,
+  message: string,
+): Promise<ChatMessageMutationResult> {
+  const cleanMessage = message.trim();
+
+  if (!cleanMessage) {
+    return {
+      error: "Message is required.",
+      message: null,
+    };
+  }
+
+  if (cleanMessage.length > chatMessageLimit) {
+    return {
+      error: `Message must be ${chatMessageLimit} characters or fewer.`,
+      message: null,
+    };
+  }
+
+  const messages = await readChatMessages();
+  const existingMessage = messages.find(
+    (currentMessage) => currentMessage.id === messageId,
+  );
+
+  if (!existingMessage) {
+    return {
+      error: "Message was not found.",
+      message: null,
+    };
+  }
+
+  if (!areSameUser(existingMessage.fromUsername, username)) {
+    return {
+      error: "You can only edit your own messages.",
+      message: null,
+    };
+  }
+
+  const updatedMessage: ChatMessage = {
+    ...existingMessage,
+    message: cleanMessage,
+    editedAt: new Date().toISOString(),
+  };
+
+  await writeChatMessages(
+    messages.map((currentMessage) =>
+      currentMessage.id === messageId ? updatedMessage : currentMessage,
+    ),
+  );
+
+  return {
+    error: "",
+    message: updatedMessage,
+  };
+}
+
+export async function deleteChatMessage(
+  username: string,
+  messageId: string,
+): Promise<DeleteChatMessageResult> {
+  const messages = await readChatMessages();
+  const existingMessage = messages.find(
+    (currentMessage) => currentMessage.id === messageId,
+  );
+
+  if (!existingMessage) {
+    return {
+      error: "Message was not found.",
+    };
+  }
+
+  if (!areSameUser(existingMessage.fromUsername, username)) {
+    return {
+      error: "You can only delete your own messages.",
+    };
+  }
+
+  await writeChatMessages(
+    messages.filter((currentMessage) => currentMessage.id !== messageId),
+  );
+
+  return {
+    error: "",
+  };
+}
