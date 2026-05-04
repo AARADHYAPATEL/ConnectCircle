@@ -251,3 +251,7 @@
 2026-05-04T06:11:30Z INF Registered tunnel connection connIndex=0 connection=3ff90211-f824-42a2-9132-2bc9eda244ba event=0 ip=198.41.192.167 location=bom06 protocol=quic
 2026-05-04T06:12:55Z ERR  error="stream 225 canceled by remote with error code 0" connIndex=0 event=1 ingressRule=0 originService=http://localhost:3000
 2026-05-04T06:12:55Z ERR Request failed error="stream 225 canceled by remote with error code 0" connIndex=0 dest=https://martial-guides-fifty-meter.trycloudflare.com/api/chat?friend=aaradhya_patel event=0 ip=198.41.192.167 type=http
+2026-05-04T06:14:10Z ERR  error="stream 513 canceled by remote with error code 0" connIndex=0 event=1 ingressRule=0 originService=http://localhost:3000
+2026-05-04T06:14:10Z ERR Request failed error="stream 513 canceled by remote with error code 0" connIndex=0 dest=https://martial-guides-fifty-meter.trycloudflare.com/_next/static/chunks/src_00qw9j0._.js event=0 ip=198.41.192.167 type=http
+2026-05-04T06:14:10Z ERR  error="stream 509 canceled by remote with error code 0" connIndex=0 event=1 ingressRule=0 originService=http://localhost:3000
+2026-05-04T06:14:10Z ERR Request failed error="stream 509 canceled by remote with error code 0" connIndex=0 dest=https://martial-guides-fifty-meter.trycloudflare.com/social/chat?_rsc=1kq2l event=0 ip=198.41.192.167 type=http
