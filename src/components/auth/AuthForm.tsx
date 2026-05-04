@@ -53,14 +53,14 @@ export function AuthForm({ mode }: AuthFormProps) {
       const data: { error?: string } = await response.json();
 
       if (!response.ok) {
-        setError(data.error ?? "Something went wrong.");
+        setError(data.error ?? "We could not complete this request.");
         return;
       }
 
       router.push("/");
       router.refresh();
     } catch {
-      setError("Could not connect to the auth server.");
+      setError("We could not reach the authentication service.");
     } finally {
       setIsSubmitting(false);
     }
@@ -76,12 +76,12 @@ export function AuthForm({ mode }: AuthFormProps) {
           {isRegister ? "Create account" : "Welcome back"}
         </p>
         <h1 className="mt-2 text-3xl font-bold text-slate-950">
-          {isRegister ? "Start your account" : "Sign in to ConnectCircle"}
+          {isRegister ? "Set up your profile" : "Sign in to ConnectCircle"}
         </h1>
         <p className="mt-3 leading-7 text-slate-700">
           {isRegister
-            ? "Your mood entries will be saved under your username."
-            : "Use your email and password to continue."}
+            ? "Your entries, friends, and circles will be saved under your username."
+            : "Use your email and password to return to your workspace."}
         </p>
       </div>
 
@@ -152,9 +152,9 @@ export function AuthForm({ mode }: AuthFormProps) {
         disabled={!canSubmit}
         type="submit"
       >
-        {isSubmitting
-          ? isRegister
-            ? "Creating..."
+          {isSubmitting
+            ? isRegister
+            ? "Creating account..."
             : "Signing in..."
           : isRegister
             ? "Create account"
@@ -204,15 +204,15 @@ function GoogleLogo() {
 function getGoogleErrorMessage(error: string | null) {
   switch (error) {
     case "google_not_configured":
-      return "Google sign-in needs GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.local.";
+      return "Google sign-in is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env.local.";
     case "google_state":
       return "Google sign-in could not be verified. Please try again.";
     case "google_token":
-      return "Google did not return a valid sign-in token.";
+      return "Google did not return a valid sign-in token. Please try again.";
     case "google_profile":
-      return "Google did not return a verified email profile.";
+      return "Google did not return a verified email profile. Use another account or sign in with email.";
     case "google_private_ip":
-      return "Google sign-in does not work from a private WiFi IP. Use email and password for local testing, or use a public HTTPS preview URL.";
+      return "Google sign-in requires a public HTTPS URL. Use email and password locally, or open the app through a public tunnel.";
     default:
       return "";
   }

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import type { ChatImageAttachment } from "@/lib/chatImageAttachments";
 import { getFriendUsernames } from "@/lib/connectionStore";
 import {
   circleDescriptionLimit,
@@ -704,12 +705,14 @@ export async function sendCircleMessage(
   fromUsername: string,
   circleId: string,
   message: string,
+  imageAttachment: ChatImageAttachment | null = null,
 ): Promise<SendCircleMessageResult> {
   const cleanMessage = message.trim();
+  const cleanImageAttachment = imageAttachment ?? null;
 
-  if (!cleanMessage) {
+  if (!cleanMessage && !cleanImageAttachment) {
     return {
-      error: "Message is required.",
+      error: "Add a message or image before sending.",
       message: null,
     };
   }
@@ -739,6 +742,9 @@ export async function sendCircleMessage(
     circleId: circle.id,
     fromUsername,
     message: cleanMessage,
+    ...(cleanImageAttachment
+      ? { imageAttachment: cleanImageAttachment }
+      : {}),
     createdAt: new Date().toISOString(),
   };
 
@@ -757,15 +763,9 @@ export async function editCircleMessage(
   username: string,
   messageId: string,
   message: string,
+  imageAttachment: ChatImageAttachment | null | undefined = undefined,
 ): Promise<CircleMessageMutationResult> {
   const cleanMessage = message.trim();
-
-  if (!cleanMessage) {
-    return {
-      error: "Message is required.",
-      message: null,
-    };
-  }
 
   if (cleanMessage.length > circleMessageLimit) {
     return {
@@ -782,6 +782,18 @@ export async function editCircleMessage(
   if (!existingMessage) {
     return {
       error: "Message was not found.",
+      message: null,
+    };
+  }
+
+  const nextImageAttachment =
+    imageAttachment === undefined
+      ? existingMessage.imageAttachment ?? null
+      : imageAttachment;
+
+  if (!cleanMessage && !nextImageAttachment) {
+    return {
+      error: "Message is required.",
       message: null,
     };
   }
@@ -807,8 +819,12 @@ export async function editCircleMessage(
   }
 
   const updatedMessage: CircleMessage = {
-    ...existingMessage,
+    id: existingMessage.id,
+    circleId: existingMessage.circleId,
+    fromUsername: existingMessage.fromUsername,
     message: cleanMessage,
+    ...(nextImageAttachment ? { imageAttachment: nextImageAttachment } : {}),
+    createdAt: existingMessage.createdAt,
     editedAt: new Date().toISOString(),
   };
 

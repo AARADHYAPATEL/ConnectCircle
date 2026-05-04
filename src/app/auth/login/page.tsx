@@ -19,14 +19,14 @@ export default async function LoginPage() {
       <section className="mx-auto grid w-full max-w-5xl gap-8 px-6 py-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
         <div>
           <p className="text-sm font-semibold uppercase tracking-normal text-teal-700">
-            Account first
+            Account access
           </p>
           <h1 className="mt-2 text-4xl font-bold leading-tight text-slate-950">
-            Your mood entries belong to your account.
+            Keep your check-ins connected to your account.
           </h1>
           <p className="mt-4 leading-7 text-slate-700">
-            Sign in before using ConnectCircle so check-ins can be saved under
-            your username.
+            Sign in to continue using ConnectCircle with your saved entries,
+            friends, circles, and messages.
           </p>
         </div>
 

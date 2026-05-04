@@ -1,10 +1,10 @@
 export const supportMessageLimit = 220;
 
 export const supportMessageSuggestions = [
-  "I am here for you.",
-  "You are doing better than you think.",
+  "I am here if you want to talk.",
+  "You are handling more than you may realize.",
   "I am proud of you for getting through today.",
-  "Want to talk? I can listen.",
+  "I can listen if you need a place to start.",
   "You matter, and I am glad you are here.",
   "Take your time. I am with you.",
 ] as const;

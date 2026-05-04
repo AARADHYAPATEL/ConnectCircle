@@ -4,25 +4,45 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="a few changes">
+    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="A lot of fixes and UI/UX changes to make the app better and more appealing.">
+      <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PROJECT_CONTEXT.md" beforeDir="false" afterPath="$PROJECT_DIR$/PROJECT_CONTEXT.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/next.config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/next.config.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/auth/google/callback/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/auth/google/callback/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/auth/google/start/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/auth/google/start/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/chat/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/chat/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/circles/chat/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/circles/chat/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/mood-entries/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/mood-entries/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/auth/login/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/auth/login/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/auth/register/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/auth/register/page.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/globals.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/globals.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/layout.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/mood/check-in/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/mood/check-in/page.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/mood/entries/[entryId]/edit/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/mood/entries/[entryId]/edit/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/mood/entries/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/mood/entries/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/mood/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/mood/page.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/page.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/social/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/social/page.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/components/auth/AuthForm.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/auth/AuthForm.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/circles/CirclesPageHeader.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/circles/CirclesPageHeader.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/circles/CircleRoomPanel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/circles/CircleRoomPanel.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/components/circles/CirclesPanel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/circles/CirclesPanel.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/layout/AppHeader.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/layout/AppHeader.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/components/mood/MoodCheckIn.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/mood/MoodCheckIn.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/mood/MoodEntriesList.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/mood/MoodEntriesList.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/mood/MoodEntryEditor.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/mood/MoodEntryEditor.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/mood/MoodTrendsDashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/mood/MoodTrendsDashboard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/social/ChatPanel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/social/ChatPanel.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/components/social/ConnectionsPanel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/social/ConnectionsPanel.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/social/SharedMoodFeed.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/social/SharedMoodFeed.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/components/social/SocialPageHeader.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/social/SocialPageHeader.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/social/SupportMessagesPanel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/social/SupportMessagesPanel.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/lib/authStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/authStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/chatStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/chatStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/chatTypes.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/chatTypes.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/circleStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/circleStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/circleTypes.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/circleTypes.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/connectionStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/connectionStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/connectionTypes.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/connectionTypes.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/presenceStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/presenceStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/supportMessageTypes.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/supportMessageTypes.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tsconfig.tsbuildinfo" beforeDir="false" afterPath="$PROJECT_DIR$/tsconfig.tsbuildinfo" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -35,21 +55,29 @@
       <entry key="_C:/Users/Aaradhya Patel/WebstormProjects/ConnectCircle" value="3D5D4XTRWgszpq2KSzxu2rXetiC" />
     </persistenceIdMap>
   </component>
+  <component name="EmbeddingIndexingInfo">
+    <option name="cachedIndexableFilesCount" value="136" />
+    <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
+  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "AARADHYAPATEL"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;AARADHYAPATEL&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/AARADHYAPATEL/ConnectCircle.git",
-    "accountId": "acd58aa9-057e-4373-a42c-15052f24607c"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/AARADHYAPATEL/ConnectCircle.git&quot;,
+    &quot;accountId&quot;: &quot;acd58aa9-057e-4373-a42c-15052f24607c&quot;
   }
-}]]></component>
+}</component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 4,
   &quot;fromUser&quot;: false
@@ -66,17 +94,20 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.MCP Project settings loaded": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "codeWithMe.voiceChat.enabledByDefault": "false",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
     "disable.download.node.interpreter.editor.notification": "true",
     "git-widget-placeholder": "master",
     "ignore.virus.scanning.warn.message": "true",
     "javascript.preferred.runtime.type.id": "node",
     "js.debugger.nextJs.config.created.client": "true",
     "js.debugger.nextJs.config.created.server": "true",
+    "junie.onboarding.icon.badge.shown": "true",
     "last_opened_file_path": "C:/Program Files/nodejs/node.exe",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
@@ -84,6 +115,7 @@
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
     "settings.editor.selected.configurable": "preferences.pluginManager",
+    "to.speed.mode.migration.done": "true",
     "ts.external.directory.path": "C:\\Users\\Aaradhya Patel\\WebstormProjects\\ConnectCircle\\node_modules\\typescript\\lib",
     "vue.rearranger.settings.migration": "true"
   }
@@ -120,7 +152,8 @@
       <workItem from="1777562847582" duration="709000" />
       <workItem from="1777565063557" duration="1542000" />
       <workItem from="1777566617039" duration="2475000" />
-      <workItem from="1777605574288" duration="14514000" />
+      <workItem from="1777605574288" duration="30201000" />
+      <workItem from="1777864546528" duration="4600000" />
     </task>
     <task id="LOCAL-00001" summary="This is ConnectCircle, where students can share their mood, send supportive messages to friends and build stronger peer relationships.">
       <option name="closed" value="true" />
@@ -138,7 +171,15 @@
       <option name="project" value="LOCAL" />
       <updated>1777646050832</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="A lot of fixes and UI/UX changes to make the app better and more appealing.">
+      <option name="closed" value="true" />
+      <created>1777655126563</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1777655126563</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -147,7 +188,8 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="This is ConnectCircle, where students can share their mood, send supportive messages to friends and build stronger peer relationships." />
     <MESSAGE value="a few changes" />
-    <option name="LAST_COMMIT_MESSAGE" value="a few changes" />
+    <MESSAGE value="A lot of fixes and UI/UX changes to make the app better and more appealing." />
+    <option name="LAST_COMMIT_MESSAGE" value="A lot of fixes and UI/UX changes to make the app better and more appealing." />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

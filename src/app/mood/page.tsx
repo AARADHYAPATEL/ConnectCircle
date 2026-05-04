@@ -25,11 +25,11 @@ export default async function MoodPage() {
               Reflect
             </p>
             <h1 className="mt-2 max-w-3xl text-4xl font-bold leading-tight text-slate-950 sm:text-5xl">
-              A quiet place to look back.
+              Review your check-ins with context.
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-700">
-              Your check-ins collect here as a private record. Review the words,
-              notice patterns, and return only when it feels useful.
+              Your saved entries form a private record. Revisit your words,
+              compare patterns, and use the insight when it is helpful.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link className="btn btn-dark" href="/mood/entries">
@@ -54,7 +54,7 @@ export default async function MoodPage() {
             {latestEntry ? (
               <div className="mt-5 rounded-md bg-white p-4">
                 <p className="text-sm font-semibold text-slate-500">
-                  Latest mood
+                  Latest check-in
                 </p>
                 <p className="mt-1 text-xl font-bold text-slate-950">
                   {latestEntry.mood}
@@ -65,7 +65,7 @@ export default async function MoodPage() {
               </div>
             ) : (
               <p className="mt-5 rounded-md bg-white p-4 text-sm font-semibold leading-6 text-slate-600">
-                No entries yet. Start with one simple check-in.
+                No entries yet. Start with one focused check-in.
               </p>
             )}
           </aside>
@@ -83,7 +83,7 @@ export default async function MoodPage() {
               Edit and review entries
             </h2>
             <p className="mt-3 leading-7 text-slate-700">
-              Browse saved check-ins without the noise of charts or social
+              Browse saved check-ins without charts, messages, or shared
               activity.
             </p>
           </Link>
@@ -96,10 +96,10 @@ export default async function MoodPage() {
               Trends
             </p>
             <h2 className="mt-2 text-2xl font-bold text-slate-950">
-              See longer patterns
+              Identify longer patterns
             </h2>
             <p className="mt-3 leading-7 text-slate-700">
-              Weekly, monthly, and yearly visuals help your check-ins become
+              Weekly, monthly, and yearly views help repeated signals become
               easier to understand.
             </p>
           </Link>

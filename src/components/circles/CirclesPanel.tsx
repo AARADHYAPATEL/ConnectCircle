@@ -45,9 +45,9 @@ async function readErrorMessage(response: Response) {
   try {
     const data: { error?: string } = await response.json();
 
-    return data.error || "Something went wrong.";
+    return data.error || "We could not complete this request.";
   } catch {
-    return "Something went wrong.";
+    return "We could not complete this request.";
   }
 }
 
@@ -205,7 +205,7 @@ export function CirclesPanel({ username }: CirclesPanelProps) {
       setName("");
       setDescription("");
       setSelectedFriendUsernames([]);
-      setSuccessMessage(`${data.circle.name} is ready.`);
+      setSuccessMessage(`${data.circle.name} has been created.`);
       await refreshCirclesPage();
     } catch (createError) {
       setError(
@@ -223,7 +223,7 @@ export function CirclesPanel({ username }: CirclesPanelProps) {
     const shouldContinue = window.confirm(
       isDeleting
         ? `Delete ${circle.name}? This removes every member and CircleChat message.`
-        : `Leave ${circle.name}? It will disappear from your circles.`,
+        : `Leave ${circle.name}? It will be removed from your circles.`,
     );
 
     if (!shouldContinue) {
@@ -395,11 +395,11 @@ export function CirclesPanel({ username }: CirclesPanelProps) {
             className="mt-2 text-4xl font-bold leading-tight text-slate-950"
             id="circles-title"
           >
-            Create closer friend groups.
+            Create trusted support circles.
           </h1>
           <p className="mt-3 max-w-2xl leading-7 text-slate-700">
-            Circles let you share check-ins with a group, manage who belongs,
-            and automatically open a CircleChat for everyone inside it.
+            Circles help you share check-ins with a focused group, manage
+            membership, and keep a dedicated CircleChat in one place.
           </p>
         </div>
       </div>
@@ -417,111 +417,135 @@ export function CirclesPanel({ username }: CirclesPanelProps) {
       ) : null}
 
       <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-        <div
-          className="motion-panel rounded-md border border-slate-200 bg-white p-5 shadow-sm"
-          id="new-circle"
-        >
-          <h2 className="text-xl font-bold text-slate-950">New circle</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Choose accepted friends, name the circle, and its shared room opens
-            with it.
-          </p>
-
-          <label className="mt-5 block text-sm font-semibold text-slate-700">
-            Circle name
-            <input
-              className="mt-2 w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100"
-              maxLength={circleNameLimit}
-              onChange={(event) => {
-                setName(event.target.value);
-                setSuccessMessage("");
-              }}
-              placeholder="Study support, close friends..."
-              value={name}
-            />
-          </label>
-          <p className="mt-1 text-right text-xs font-semibold text-slate-500">
-            {name.length}/{circleNameLimit}
-          </p>
-
-          <label className="mt-4 block text-sm font-semibold text-slate-700">
-            Description
-            <textarea
-              className="mt-2 min-h-24 w-full resize-none rounded-md border border-slate-300 bg-slate-50 p-3 text-sm text-slate-900 outline-none focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100"
-              maxLength={circleDescriptionLimit}
-              onChange={(event) => {
-                setDescription(event.target.value);
-                setSuccessMessage("");
-              }}
-              placeholder="What this circle is for..."
-              value={description}
-            />
-          </label>
-          <p className="mt-1 text-right text-xs font-semibold text-slate-500">
-            {description.length}/{circleDescriptionLimit}
-          </p>
-
-          <fieldset className="mt-5">
-            <legend className="text-sm font-semibold text-slate-700">
-              Add friends
-            </legend>
-
-            {isLoading ? (
-              <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-500">
-                Loading friends...
-              </p>
-            ) : null}
-
-            {!isLoading && !hasFriends ? (
-              <p className="mt-3 rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-sm font-semibold leading-6 text-slate-600">
-                Add accepted friends from Connections before creating a circle.
-              </p>
-            ) : null}
-
-            {hasFriends ? (
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {friendUsernames.map((friendUsername) => {
-                  const isSelected =
-                    selectedFriendUsernames.includes(friendUsername);
-
-                  return (
-                    <label
-                      className={`flex cursor-pointer items-center gap-3 rounded-md border p-3 text-sm font-bold transition ${
-                        isSelected
-                          ? "border-teal-500 bg-teal-50 text-teal-900"
-                          : "border-slate-200 bg-white text-slate-700 hover:border-teal-200"
-                      }`}
-                      key={friendUsername}
-                    >
-                      <input
-                        checked={isSelected}
-                        className="accent-teal-700"
-                        onChange={() => toggleFriendSelection(friendUsername)}
-                        type="checkbox"
-                      />
-                      @{friendUsername}
-                    </label>
-                  );
-                })}
-              </div>
-            ) : null}
-          </fieldset>
-
-          <button
-            className="btn btn-primary mt-5 w-full"
-            disabled={!canCreate}
-            onClick={() => void handleCreateCircle()}
-            type="button"
+        <div className="grid content-start gap-5">
+          <div
+            className="motion-panel rounded-md border border-teal-200 bg-white p-5 shadow-sm"
+            id="new-circle"
           >
-            {isCreating ? "Creating..." : "Create circle"}
-          </button>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-normal text-teal-700">
+                  Create
+                </p>
+                <h2 className="mt-1 text-2xl font-bold text-slate-950">
+                  New circle
+                </h2>
+              </div>
+              <span className="rounded-md bg-teal-50 px-3 py-2 text-xs font-black uppercase tracking-normal text-teal-800">
+                Private room
+              </span>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Choose accepted friends, add a clear name, and create a shared
+              room for check-ins and chat.
+            </p>
 
-          <div className="mt-6 border-t border-slate-100 pt-5">
-            <h2 className="text-xl font-bold text-slate-950">
-              Join by name
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Type the exact circle name and send the creator a request.
+            <label className="mt-5 block text-sm font-semibold text-slate-700">
+              Circle name
+              <input
+                className="mt-2 w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100"
+                maxLength={circleNameLimit}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  setSuccessMessage("");
+                }}
+                placeholder="Study support, close friends..."
+                value={name}
+              />
+            </label>
+            <p className="mt-1 text-right text-xs font-semibold text-slate-500">
+              {name.length}/{circleNameLimit}
+            </p>
+
+            <label className="mt-4 block text-sm font-semibold text-slate-700">
+              Description
+              <textarea
+                className="mt-2 min-h-24 w-full resize-none rounded-md border border-slate-300 bg-slate-50 p-3 text-sm text-slate-900 outline-none focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100"
+                maxLength={circleDescriptionLimit}
+                onChange={(event) => {
+                  setDescription(event.target.value);
+                  setSuccessMessage("");
+                }}
+                placeholder="Describe the purpose of this circle..."
+                value={description}
+              />
+            </label>
+            <p className="mt-1 text-right text-xs font-semibold text-slate-500">
+              {description.length}/{circleDescriptionLimit}
+            </p>
+
+            <fieldset className="mt-5">
+              <legend className="text-sm font-semibold text-slate-700">
+                Add members
+              </legend>
+
+              {isLoading ? (
+                <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-500">
+                  Loading friends...
+                </p>
+              ) : null}
+
+              {!isLoading && !hasFriends ? (
+                <p className="mt-3 rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-sm font-semibold leading-6 text-slate-600">
+                  Add accepted friends before creating a circle.
+                </p>
+              ) : null}
+
+              {hasFriends ? (
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {friendUsernames.map((friendUsername) => {
+                    const isSelected =
+                      selectedFriendUsernames.includes(friendUsername);
+
+                    return (
+                      <label
+                        className={`flex cursor-pointer items-center gap-3 rounded-md border p-3 text-sm font-bold transition ${
+                          isSelected
+                            ? "border-teal-500 bg-teal-50 text-teal-900"
+                            : "border-slate-200 bg-white text-slate-700 hover:border-teal-200"
+                        }`}
+                        key={friendUsername}
+                      >
+                        <input
+                          checked={isSelected}
+                          className="accent-teal-700"
+                          onChange={() => toggleFriendSelection(friendUsername)}
+                          type="checkbox"
+                        />
+                        @{friendUsername}
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </fieldset>
+
+            <button
+              className="btn btn-primary mt-5 w-full"
+              disabled={!canCreate}
+              onClick={() => void handleCreateCircle()}
+              type="button"
+            >
+              {isCreating ? "Creating..." : "Create circle"}
+            </button>
+          </div>
+
+          <div className="motion-panel rounded-md border border-sky-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-normal text-sky-800">
+                  Join
+                </p>
+                <h2 className="mt-1 text-2xl font-bold text-slate-950">
+                  Request access by name
+                </h2>
+              </div>
+              <span className="rounded-md bg-sky-50 px-3 py-2 text-xs font-black uppercase tracking-normal text-sky-800">
+                Request
+              </span>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Enter the exact circle name to send the creator an access request.
             </p>
             <label className="mt-4 block text-sm font-semibold text-slate-700">
               Circle name
@@ -548,7 +572,7 @@ export function CirclesPanel({ username }: CirclesPanelProps) {
               onClick={() => void handleRequestJoinByName()}
               type="button"
             >
-              {isRequestingByName ? "Requesting..." : "Request to join"}
+              {isRequestingByName ? "Requesting..." : "Request access"}
             </button>
           </div>
         </div>
@@ -567,7 +591,7 @@ export function CirclesPanel({ username }: CirclesPanelProps) {
           {!isLoading && incomingJoinRequests.length > 0 ? (
             <section>
               <h2 className="text-xl font-bold text-slate-950">
-                Join requests
+                Access requests
               </h2>
               <div className="mt-3 grid gap-3">
                 {incomingJoinRequests.map((request) => (
@@ -581,7 +605,7 @@ export function CirclesPanel({ username }: CirclesPanelProps) {
                           @{request.fromUsername}
                         </p>
                         <p className="mt-1 text-sm font-semibold text-amber-800">
-                          Wants to join {request.circle.name}
+                          Requested access to {request.circle.name}
                         </p>
                         <p className="mt-1 text-xs font-semibold text-slate-500">
                           Sent {formatDate(request.createdAt)}
@@ -620,7 +644,7 @@ export function CirclesPanel({ username }: CirclesPanelProps) {
           (discoverableCircles.length > 0 || outgoingJoinRequests.length > 0) ? (
             <section>
               <h2 className="text-xl font-bold text-slate-950">
-                Friend circles
+                Available friend circles
               </h2>
               <div className="mt-3 grid gap-3">
                 {discoverableCircles.map((circle) => (
@@ -650,7 +674,7 @@ export function CirclesPanel({ username }: CirclesPanelProps) {
                       >
                         {mutatingCircleAction === `request:${circle.id}`
                           ? "Requesting..."
-                          : "Request to join"}
+                          : "Request access"}
                       </button>
                     </div>
                     {circle.description ? (
@@ -693,8 +717,8 @@ export function CirclesPanel({ username }: CirclesPanelProps) {
                     No circles yet
                   </h3>
                   <p className="mt-2 leading-7 text-slate-600">
-                    Once you create or join a circle, it will appear here with
-                    its shared room.
+                    Circles you create or join will appear here with their
+                    shared rooms.
                   </p>
                 </div>
               ) : null}
@@ -746,7 +770,7 @@ export function CirclesPanel({ username }: CirclesPanelProps) {
                           className="btn btn-primary btn-sm"
                           href={`/circles/${circle.id}`}
                         >
-                          Open circle room
+                          Open room
                         </Link>
                         <button
                           className="btn btn-danger btn-sm"
@@ -782,18 +806,17 @@ function CircleEmptyGuide({ hasFriends }: { hasFriends: boolean }) {
     return (
       <section className="rounded-md border border-dashed border-teal-300 bg-teal-50 p-6 shadow-sm">
         <p className="text-sm font-semibold uppercase tracking-normal text-teal-800">
-          Groups start with trust
+        Circles start with trusted connections
         </p>
         <h2 className="mt-2 text-2xl font-bold text-slate-950">
-          Add one friend before creating a group.
+          Add one friend before creating a circle.
         </h2>
         <p className="mt-3 max-w-2xl leading-7 text-slate-700">
-          Circles are private shared rooms, so ConnectCircle starts them from
-          accepted friendships. Add a friend first, then come back to create a
-          small group.
+          Circles are private shared rooms built from accepted friendships. Add
+          a friend first, then return to create a focused group.
         </p>
         <Link className="btn btn-primary mt-5" href="/social/connections">
-          Add a friend first
+          Add a friend
         </Link>
       </section>
     );
@@ -802,17 +825,17 @@ function CircleEmptyGuide({ hasFriends }: { hasFriends: boolean }) {
   return (
     <section className="rounded-md border border-dashed border-teal-300 bg-teal-50 p-6 shadow-sm">
       <p className="text-sm font-semibold uppercase tracking-normal text-teal-800">
-        First group
+        First circle
       </p>
       <h2 className="mt-2 text-2xl font-bold text-slate-950">
-        Create one small room.
+        Create a focused shared room.
       </h2>
       <p className="mt-3 max-w-2xl leading-7 text-slate-700">
-        Pick one or two accepted friends, give the circle a clear name, and
-        open a quieter space for shared check-ins and chat.
+        Choose a few accepted friends, give the circle a clear name, and open a
+        focused space for shared check-ins and chat.
       </p>
       <a className="btn btn-primary mt-5" href="#new-circle">
-        Create a group
+        Create a circle
       </a>
     </section>
   );

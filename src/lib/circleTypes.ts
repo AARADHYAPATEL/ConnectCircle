@@ -1,3 +1,8 @@
+import {
+  isChatImageAttachment,
+  type ChatImageAttachment,
+} from "@/lib/chatImageAttachments";
+
 export const circleNameLimit = 40;
 export const circleDescriptionLimit = 120;
 export const circleMessageLimit = 500;
@@ -39,6 +44,7 @@ export type CircleMessage = {
   circleId: string;
   fromUsername: string;
   message: string;
+  imageAttachment?: ChatImageAttachment;
   createdAt: string;
   editedAt?: string;
 };
@@ -101,6 +107,8 @@ export function isCircleMessage(value: unknown): value is CircleMessage {
     typeof message.circleId === "string" &&
     typeof message.fromUsername === "string" &&
     typeof message.message === "string" &&
+    (message.imageAttachment === undefined ||
+      isChatImageAttachment(message.imageAttachment)) &&
     typeof message.createdAt === "string" &&
     (message.editedAt === undefined || typeof message.editedAt === "string")
   );

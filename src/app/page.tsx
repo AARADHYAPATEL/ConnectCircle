@@ -18,38 +18,27 @@ export default async function Home() {
   ]);
   const hasCheckIn = entries.length > 0;
   const hasFriends = connectionSummary.friends.length > 0;
-  const nextAction = !hasCheckIn
-    ? {
-        href: "/mood/check-in",
-        label: "Start the first check-in",
-      }
-    : !hasFriends
-      ? {
-          href: "/social/connections",
-          label: "Add trusted support",
-        }
-      : {
-          href: "/mood",
-          label: "Reflect on your pattern",
-        };
+  const checkInActionLabel = hasCheckIn
+    ? "Add today's check-in"
+    : "Start your first check-in";
   const startSteps = [
     {
-      description: "Name one feeling. Details can wait.",
+      description: "Capture one clear feeling. Add detail only if it helps.",
       href: "/mood/check-in",
-      status: hasCheckIn ? "Done" : "Next",
-      title: "Begin with today",
+      status: hasCheckIn ? "Complete" : "Next",
+      title: "Record today",
     },
     {
-      description: "Your history and trends unlock meaning over time.",
+      description: "Review your saved entries and notice patterns over time.",
       href: "/mood",
       status: hasCheckIn ? "Ready" : "After first check-in",
-      title: "Look back privately",
+      title: "Review privately",
     },
     {
-      description: "Invite friends only when sharing would actually help.",
+      description: "Invite trusted people when support would be useful.",
       href: "/social/connections",
       status: hasFriends ? "Started" : "Optional",
-      title: "Add support gently",
+      title: "Build support",
     },
   ];
 
@@ -64,18 +53,15 @@ export default async function Home() {
               Welcome back, @{user.username}
             </p>
             <h1 className="mt-3 max-w-3xl text-4xl font-bold leading-tight text-slate-950 sm:text-5xl">
-              Start with how today feels.
+              Record today&apos;s check-in with clarity.
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-700">
-              A check-in is the center of ConnectCircle. Everything else helps
-              you reflect on those entries or share them with the right people.
+              ConnectCircle helps you document how you feel, review patterns,
+              and share meaningful updates with people you trust.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link className="btn btn-dark" href={nextAction.href}>
-                {nextAction.label}
-              </Link>
-              <Link className="btn btn-secondary" href="/mood/check-in">
-                Quick check-in
+              <Link className="btn btn-dark" href="/mood/check-in">
+                {checkInActionLabel}
               </Link>
             </div>
           </div>
@@ -83,34 +69,31 @@ export default async function Home() {
           <div className="grid gap-4">
             <article className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-sm font-semibold uppercase tracking-normal text-teal-700">
-                Start here
+                Recommended path
               </p>
               <h2 className="mt-2 text-2xl font-bold text-slate-950">
-                One calm step at a time.
+                Complete one focused step at a time.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                ConnectCircle works best when it starts private, then grows only
-                as you need support.
+                Begin with a private entry, then use the rest of the app when
+                reflection or support becomes useful.
               </p>
               <ol className="mt-5 grid gap-3">
                 {startSteps.map((step, index) => (
-                  <li
-                    className="rounded-md border border-slate-200 bg-slate-50 p-3"
-                    key={step.title}
-                  >
-                    <div className="flex items-start gap-3">
-                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-white text-sm font-bold text-teal-800">
+                  <li key={step.title}>
+                    <Link
+                      className="group flex items-start gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-left shadow-sm transition hover:border-teal-300 hover:bg-white hover:shadow-md focus:outline-none focus:ring-2 focus:ring-teal-300"
+                      href={step.href}
+                    >
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-white text-sm font-bold text-teal-800 transition group-hover:bg-teal-50">
                         {index + 1}
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <Link
-                            className="font-bold text-slate-950 hover:text-teal-800"
-                            href={step.href}
-                          >
+                          <span className="font-bold text-slate-950 transition group-hover:text-teal-800">
                             {step.title}
-                          </Link>
-                          <span className="rounded-md bg-white px-2 py-1 text-xs font-bold text-slate-500">
+                          </span>
+                          <span className="rounded-md bg-white px-2 py-1 text-xs font-bold text-slate-500 transition group-hover:text-teal-800">
                             {step.status}
                           </span>
                         </div>
@@ -118,7 +101,7 @@ export default async function Home() {
                           {step.description}
                         </p>
                       </div>
-                    </div>
+                    </Link>
                   </li>
                 ))}
               </ol>
@@ -126,14 +109,14 @@ export default async function Home() {
 
             <article className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-sm font-semibold uppercase tracking-normal text-slate-500">
-                Support when needed
+                Support network
               </p>
               <h2 className="mt-2 text-2xl font-bold text-slate-950">
-                Share with intention.
+                Share with purpose.
               </h2>
               <p className="mt-3 leading-7 text-slate-700">
-                Keep things one-to-one with friends, or use group circles for a
-                smaller shared room.
+                Keep conversations one-to-one with friends, or use circles for
+                focused group support.
               </p>
             </article>
           </div>
@@ -148,11 +131,11 @@ export default async function Home() {
               Friends
             </p>
             <h2 className="mt-2 text-2xl font-bold text-slate-950">
-              Individual chats and support
+              Individual chat and direct support
             </h2>
             <p className="mt-3 leading-7 text-slate-700">
-              Friend requests, one-to-one chat, support messages, and moods
-              shared directly with you.
+              Manage requests, chat privately, send support notes, and view
+              moods shared directly with you.
             </p>
           </Link>
 
@@ -164,11 +147,11 @@ export default async function Home() {
               Groups
             </p>
             <h2 className="mt-2 text-2xl font-bold text-slate-950">
-              Private rooms for closer circles
+              Private rooms for trusted groups
             </h2>
             <p className="mt-3 leading-7 text-slate-700">
-              Named groups with member approvals, shared check-ins, and a
-              dedicated CircleChat.
+              Create member-approved circles with shared check-ins and a
+              dedicated group chat.
             </p>
           </Link>
         </div>

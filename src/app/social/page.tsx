@@ -7,28 +7,29 @@ const socialSections = [
   {
     accent: "text-teal-800",
     border: "border-teal-200 bg-teal-50 hover:border-teal-400 hover:bg-teal-100",
-    description: "Start here when you want to add someone or review your accepted friends.",
+    description:
+      "Send requests, review pending invitations, and manage accepted friends.",
     href: "/social/connections",
-    title: "Friend requests",
+    title: "Requests and friends",
   },
   {
     accent: "text-rose-800",
     border: "border-rose-200 bg-rose-50 hover:border-rose-400",
-    description: "A private chat space for one friend at a time.",
+    description: "Continue a private conversation with one accepted friend.",
     href: "/social/chat",
     title: "One-to-one chat",
   },
   {
     accent: "text-amber-800",
     border: "border-amber-200 bg-amber-50 hover:border-amber-400 hover:bg-amber-100",
-    description: "Short encouragement without opening a full conversation.",
+    description: "Send a short supportive note without opening a full chat.",
     href: "/social/support",
-    title: "Kind notes",
+    title: "Support notes",
   },
   {
     accent: "text-sky-800",
     border: "border-sky-200 bg-sky-50 hover:border-sky-400 hover:bg-sky-100",
-    description: "A quiet feed of check-ins that friends chose to share.",
+    description: "Review check-ins friends have intentionally shared with you.",
     href: "/social/feed",
     title: "Shared moods",
   },
@@ -51,12 +52,11 @@ export default async function SocialPage() {
             Friends
           </p>
           <h1 className="mt-2 max-w-3xl text-4xl font-bold leading-tight text-slate-950">
-            Individual support, without the noise.
+            Stay connected with trusted friends.
           </h1>
           <p className="mt-4 max-w-3xl leading-7 text-slate-700">
-            This area is for one-to-one connection: adding friends, sending a
-            quick note, chatting privately, or reading moods shared directly
-            with you.
+            Use this area for direct support: find people, manage requests,
+            send notes, chat privately, and view check-ins shared with you.
           </p>
         </div>
 
