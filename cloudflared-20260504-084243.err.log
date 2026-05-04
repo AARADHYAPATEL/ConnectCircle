@@ -255,3 +255,19 @@
 2026-05-04T06:14:10Z ERR Request failed error="stream 513 canceled by remote with error code 0" connIndex=0 dest=https://martial-guides-fifty-meter.trycloudflare.com/_next/static/chunks/src_00qw9j0._.js event=0 ip=198.41.192.167 type=http
 2026-05-04T06:14:10Z ERR  error="stream 509 canceled by remote with error code 0" connIndex=0 event=1 ingressRule=0 originService=http://localhost:3000
 2026-05-04T06:14:10Z ERR Request failed error="stream 509 canceled by remote with error code 0" connIndex=0 dest=https://martial-guides-fifty-meter.trycloudflare.com/social/chat?_rsc=1kq2l event=0 ip=198.41.192.167 type=http
+2026-05-04T06:14:40Z ERR  error="stream 465 canceled by remote with error code 0" connIndex=0 event=1 ingressRule=0 originService=http://localhost:3000
+2026-05-04T06:14:40Z ERR  error="stream 497 canceled by remote with error code 0" connIndex=0 event=1 ingressRule=0 originService=http://localhost:3000
+2026-05-04T06:14:40Z ERR  error="stream 501 canceled by remote with error code 0" connIndex=0 event=1 ingressRule=0 originService=http://localhost:3000
+2026-05-04T06:14:40Z ERR  error="stream 489 canceled by remote with error code 0" connIndex=0 event=1 ingressRule=0 originService=http://localhost:3000
+2026-05-04T06:14:40Z ERR  error="stream 477 canceled by remote with error code 0" connIndex=0 event=1 ingressRule=0 originService=http://localhost:3000
+2026-05-04T06:14:40Z ERR  error="stream 481 canceled by remote with error code 0" connIndex=0 event=1 ingressRule=0 originService=http://localhost:3000
+2026-05-04T06:14:40Z ERR  error="stream 493 canceled by remote with error code 0" connIndex=0 event=1 ingressRule=0 originService=http://localhost:3000
+2026-05-04T06:14:40Z ERR Request failed error="stream 465 canceled by remote with error code 0" connIndex=0 dest=https://martial-guides-fifty-meter.trycloudflare.com/api/chat?friend=aaradhya_patel event=0 ip=198.41.192.167 type=http
+2026-05-04T06:14:40Z ERR Request failed error="stream 497 canceled by remote with error code 0" connIndex=0 dest=https://martial-guides-fifty-meter.trycloudflare.com/api/chat?friend=aaradhya_patel event=0 ip=198.41.192.167 type=http
+2026-05-04T06:14:40Z ERR Request failed error="stream 501 canceled by remote with error code 0" connIndex=0 dest=https://martial-guides-fifty-meter.trycloudflare.com/api/chat?friend=aaradhya_patel event=0 ip=198.41.192.167 type=http
+2026-05-04T06:14:40Z ERR Request failed error="stream 489 canceled by remote with error code 0" connIndex=0 dest=https://martial-guides-fifty-meter.trycloudflare.com/api/chat?friend=aaradhya_patel event=0 ip=198.41.192.167 type=http
+2026-05-04T06:14:40Z ERR Request failed error="stream 477 canceled by remote with error code 0" connIndex=0 dest=https://martial-guides-fifty-meter.trycloudflare.com/api/chat?friend=aaradhya_patel event=0 ip=198.41.192.167 type=http
+2026-05-04T06:14:40Z ERR Request failed error="stream 481 canceled by remote with error code 0" connIndex=0 dest=https://martial-guides-fifty-meter.trycloudflare.com/api/chat?friend=aaradhya_patel event=0 ip=198.41.192.167 type=http
+2026-05-04T06:14:40Z ERR Request failed error="stream 493 canceled by remote with error code 0" connIndex=0 dest=https://martial-guides-fifty-meter.trycloudflare.com/api/chat?friend=aaradhya_patel event=0 ip=198.41.192.167 type=http
+2026-05-04T06:14:40Z ERR  error="stream 505 canceled by remote with error code 0" connIndex=0 event=1 ingressRule=0 originService=http://localhost:3000
+2026-05-04T06:14:40Z ERR Request failed error="stream 505 canceled by remote with error code 0" connIndex=0 dest=https://martial-guides-fifty-meter.trycloudflare.com/api/chat?friend=aaradhya_patel event=0 ip=198.41.192.167 type=http
