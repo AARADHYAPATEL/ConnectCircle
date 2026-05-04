@@ -21,7 +21,7 @@ function formatEntryDate(value: string) {
 
 function getSharingText(entry: SavedMoodEntry, circles: Circle[]) {
   if (entry.audience === "Selected circles") {
-    return `Broadcast to ${getCircleSharingTargetText(
+    return `Shared with ${getCircleSharingTargetText(
       entry.sharedCircleIds,
       circles,
     )}`;
@@ -62,7 +62,7 @@ export function MoodEntriesList({ username }: MoodEntriesListProps) {
         ]);
 
         if (!entriesResponse.ok) {
-          throw new Error("Could not load mood entries.");
+          throw new Error("Could not load check-ins.");
         }
 
         const data: { entries: SavedMoodEntry[] } =
@@ -78,7 +78,7 @@ export function MoodEntriesList({ username }: MoodEntriesListProps) {
         }
       } catch {
         if (isActive) {
-          setError("Mood entries could not be loaded.");
+          setError("Check-ins could not be loaded.");
         }
       } finally {
         if (isActive) {
@@ -116,14 +116,14 @@ export function MoodEntriesList({ username }: MoodEntriesListProps) {
       });
 
       if (!response.ok) {
-        throw new Error("Could not delete mood entry.");
+        throw new Error("Could not delete check-in.");
       }
 
       setEntries((currentEntries) =>
         currentEntries.filter((currentEntry) => currentEntry.id !== entry.id),
       );
     } catch {
-      setError("Mood entry could not be deleted.");
+      setError("Check-in could not be deleted.");
     } finally {
       setDeletingEntryId(null);
     }
@@ -143,10 +143,10 @@ export function MoodEntriesList({ username }: MoodEntriesListProps) {
             className="mt-2 text-4xl font-bold text-slate-950"
             id="mood-entry-history-title"
           >
-            My mood entries
+            Your mood history
           </h1>
           <p className="mt-3 max-w-2xl leading-7 text-slate-700">
-            A private record of your check-ins, saved under @{username}.
+            A private record of check-ins saved under @{username}.
           </p>
         </div>
         <Link
@@ -159,7 +159,7 @@ export function MoodEntriesList({ username }: MoodEntriesListProps) {
 
       {isLoading ? (
         <div className="mt-8 rounded-md border border-slate-200 bg-white p-5 text-sm font-semibold text-slate-600">
-          Loading mood entries...
+          Loading mood history...
         </div>
       ) : null}
 
@@ -172,10 +172,10 @@ export function MoodEntriesList({ username }: MoodEntriesListProps) {
       {!isLoading && !error && entries.length === 0 ? (
         <div className="mt-8 rounded-md border border-dashed border-slate-300 bg-white p-6">
           <h2 className="text-lg font-bold text-slate-950">
-            No mood entries yet
+            No check-ins yet
           </h2>
           <p className="mt-2 leading-7 text-slate-600">
-            Your saved check-ins will show up here once you add your first one.
+            Saved check-ins will appear here after your first entry.
           </p>
         </div>
       ) : null}
@@ -216,7 +216,7 @@ export function MoodEntriesList({ username }: MoodEntriesListProps) {
                   className="btn btn-secondary btn-sm"
                   href={`/mood/entries/${entry.id}/edit`}
                 >
-                  Edit entry
+                  Edit
                 </Link>
                 <button
                   className="btn btn-danger btn-sm"
@@ -224,7 +224,7 @@ export function MoodEntriesList({ username }: MoodEntriesListProps) {
                   onClick={() => void handleDeleteEntry(entry)}
                   type="button"
                 >
-                  {deletingEntryId === entry.id ? "Deleting..." : "Delete entry"}
+                  {deletingEntryId === entry.id ? "Deleting..." : "Delete"}
                 </button>
               </div>
             </article>

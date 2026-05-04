@@ -23,22 +23,22 @@ const shareOptions: Array<{
   value: Audience;
 }> = [
   {
-    description: "Keep this check-in in your personal mood entries.",
+    description: "Save this check-in to your private mood history.",
     label: "Only me",
     value: personalAudience,
   },
   {
-    description: "Send this check-in to every accepted friend.",
+    description: "Share this check-in with all accepted friends.",
     label: "All friends",
     value: "Circle feed",
   },
   {
-    description: "Pick exactly who should receive this check-in.",
+    description: "Choose the friends who should receive this check-in.",
     label: "Selected friends",
     value: "Chosen friends",
   },
   {
-    description: "Broadcast this check-in into one or more circles.",
+    description: "Share this check-in with one or more circles.",
     label: "Selected circles",
     value: "Selected circles",
   },
@@ -252,7 +252,7 @@ export function MoodCheckIn({ username }: MoodCheckInProps) {
       });
 
       if (!response.ok) {
-        throw new Error("Mood entry could not be saved.");
+        throw new Error("Check-in could not be saved.");
       }
 
       const data: { entry: SavedMoodEntry } = await response.json();
@@ -268,7 +268,7 @@ export function MoodCheckIn({ username }: MoodCheckInProps) {
       setSupportNeed("No advice needed");
       setIsAddingDetails(false);
     } catch {
-      setError("Something went wrong while saving this check-in.");
+      setError("We could not save this check-in. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -287,18 +287,18 @@ export function MoodCheckIn({ username }: MoodCheckInProps) {
             className="mt-1 text-2xl font-bold text-slate-950"
             id="mood-check-in-title"
           >
-            How are you feeling?
+            What are you feeling today?
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Type one feeling and save, or add details if you want the fuller
-            check-in.
+            Enter one clear feeling, then add details if the moment needs more
+            context.
           </p>
         </div>
         <span className="rounded-md bg-teal-50 px-3 py-1 text-sm font-semibold text-teal-800">
           {isAddingDetails
             ? audience === personalAudience
               ? "Private"
-              : "Shared mood"
+              : "Shared check-in"
             : "Quick check-in"}
         </span>
       </div>
@@ -308,18 +308,18 @@ export function MoodCheckIn({ username }: MoodCheckInProps) {
           className="block text-sm font-semibold text-slate-800"
           htmlFor="mood-text"
         >
-          Put your mood in your own words
+          Mood or feeling
         </label>
         <input
           className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-base font-semibold text-slate-950 outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
           id="mood-text"
           maxLength={moodLimit}
           onChange={(event) => handleMoodInput(event.target.value)}
-          placeholder="nervous but excited, peaceful, left out..."
+          placeholder="Nervous but excited, peaceful, left out..."
           value={moodText}
         />
         <div className="mt-2 flex items-center justify-between gap-3 text-xs font-semibold text-slate-500">
-          <span>Suggestions are only starters. Your words count.</span>
+          <span>Use a suggestion or write the feeling in your own words.</span>
           <span>
             {moodText.length}/{moodLimit}
           </span>
@@ -328,7 +328,7 @@ export function MoodCheckIn({ username }: MoodCheckInProps) {
 
       <fieldset className="mt-5">
         <legend className="text-sm font-semibold text-slate-700">
-          Quick mood words
+          Suggested mood words
         </legend>
         <div className="mt-3 flex flex-wrap gap-2">
           {moodSuggestions.map((suggestion) => {
@@ -365,7 +365,7 @@ export function MoodCheckIn({ username }: MoodCheckInProps) {
       {isAddingDetails ? (
         <div className="mt-5 rounded-md border border-slate-200 bg-slate-50 p-4">
           <label className="block text-sm font-semibold text-slate-700">
-            How strong does it feel?
+            Intensity
             <span className="ml-2 text-slate-500">{intensity}/5</span>
             <input
               className="mt-3 block w-full accent-teal-700"
@@ -378,7 +378,7 @@ export function MoodCheckIn({ username }: MoodCheckInProps) {
           </label>
 
           <label className="mt-5 block text-sm font-semibold text-slate-700">
-            Support signal
+            Support preference
             <select
               className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-sm font-semibold text-slate-800 outline-none focus:border-teal-500 focus:bg-white"
               onChange={(event) =>
@@ -394,7 +394,7 @@ export function MoodCheckIn({ username }: MoodCheckInProps) {
 
           <fieldset className="mt-5 rounded-md border border-slate-200 bg-white p-4">
             <legend className="text-sm font-semibold text-slate-800">
-              Share this check-in
+              Sharing settings
             </legend>
             <div className="mt-3 grid gap-3">
               {shareOptions.map((option) => {
@@ -449,7 +449,7 @@ export function MoodCheckIn({ username }: MoodCheckInProps) {
 
             {!isLoadingFriends && !friendError && !hasFriends ? (
               <p className="mt-3 text-sm font-semibold text-slate-500">
-                Add accepted friends from Connections to share mood check-ins.
+                Add accepted friends before sharing check-ins with people.
               </p>
             ) : null}
 
@@ -468,7 +468,7 @@ export function MoodCheckIn({ username }: MoodCheckInProps) {
             {isChoosingFriends && hasFriends ? (
               <div className="mt-4">
                 <p className="text-sm font-semibold text-slate-700">
-                  Choose friends
+                  Select friends
                 </p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {friendUsernames.map((friendUsername) => {
@@ -501,7 +501,7 @@ export function MoodCheckIn({ username }: MoodCheckInProps) {
             {isChoosingCircles && hasCircles ? (
               <div className="mt-4">
                 <p className="text-sm font-semibold text-slate-700">
-                  Choose circles
+                  Select circles
                 </p>
                 <div className="mt-3 grid gap-2">
                   {circles.map((circle) => {
@@ -537,7 +537,7 @@ export function MoodCheckIn({ username }: MoodCheckInProps) {
           </fieldset>
 
           <label className="mt-5 block text-sm font-semibold text-slate-700">
-            Want to add more context?
+            Additional context
             <textarea
               className="mt-2 min-h-28 w-full resize-none rounded-md border border-slate-300 bg-white p-3 text-sm text-slate-900 outline-none focus:border-teal-500 focus:bg-white"
               maxLength={noteLimit}
@@ -579,16 +579,16 @@ export function MoodCheckIn({ username }: MoodCheckInProps) {
       {savedCheckIn ? (
         <div className="mt-5 border-t border-slate-200 pt-4" role="status">
           <p className="text-sm font-bold text-slate-950">
-            Check-in saved to your personal mood entries.
+            Check-in saved to your mood history.
           </p>
           <p className="mt-1 text-sm leading-6 text-slate-600">
             Feeling {savedCheckIn.mood} at {savedCheckIn.intensity}/5. Support
-            signal:
+            preference:
             {" " + savedCheckIn.supportNeed.toLowerCase()}.
           </p>
           {savedCheckIn.sharedCircleIds.length > 0 ? (
             <p className="mt-1 text-sm leading-6 text-slate-600">
-              Broadcast to{" "}
+              Shared with{" "}
               {getCircleSharingTargetText(savedCheckIn.sharedCircleIds, circles)}
               .
             </p>
@@ -605,7 +605,7 @@ export function MoodCheckIn({ username }: MoodCheckInProps) {
             className="btn btn-secondary btn-sm mt-4"
             href="/mood/entries"
           >
-            View my mood entries
+            View mood history
           </Link>
         </div>
       ) : null}

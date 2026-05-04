@@ -76,20 +76,20 @@ export function SharedMoodFeed() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-normal text-sky-700">
-              Friend mood feed
+              Shared check-ins
             </p>
             <h2
               className="mt-2 text-3xl font-bold text-slate-950"
               id="shared-moods-title"
             >
-              Moods shared with you
+              Check-ins shared with you
             </h2>
           </div>
         </div>
 
         {isLoading ? (
           <div className="mt-6 rounded-md border border-slate-200 bg-white p-5 text-sm font-semibold text-slate-600">
-            Loading shared moods...
+            Loading shared check-ins...
           </div>
         ) : null}
 
@@ -102,7 +102,7 @@ export function SharedMoodFeed() {
         {!isLoading && !error && entries.length === 0 ? (
           <div className="mt-6 rounded-md border border-dashed border-slate-300 bg-white p-5">
             <p className="text-sm font-semibold leading-6 text-slate-600">
-              When friends share mood check-ins with you, they will appear here.
+              Check-ins that friends share with you will appear here.
             </p>
           </div>
         ) : null}

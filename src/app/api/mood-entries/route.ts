@@ -67,7 +67,7 @@ export async function POST(request: Request) {
 
   if (!isSupportNeed(entry.supportNeed)) {
     return NextResponse.json(
-      { error: "Support signal is invalid." },
+      { error: "Support preference is invalid." },
       { status: 400 },
     );
   }
@@ -146,7 +146,7 @@ export async function PATCH(request: Request) {
 
   if (!isSupportNeed(entry.supportNeed)) {
     return NextResponse.json(
-      { error: "Support signal is invalid." },
+      { error: "Support preference is invalid." },
       { status: 400 },
     );
   }

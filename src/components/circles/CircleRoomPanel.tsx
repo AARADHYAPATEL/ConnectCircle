@@ -1,14 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ClipboardEvent,
+} from "react";
+import { EmojiPicker } from "@/components/chat/EmojiPicker";
+import {
+  ChatImageAttachmentInput,
+  copyChatImageAttachmentToClipboard,
+  createChatImageAttachmentFromFile,
+  getClipboardImageFile,
+} from "@/components/chat/ChatImageAttachmentInput";
+import { MessageActionsMenu } from "@/components/chat/MessageActionsMenu";
+import type { ChatImageAttachment } from "@/lib/chatImageAttachments";
 import {
   circleMessageLimit,
   type CircleChatThread,
   type CircleMessage,
 } from "@/lib/circleTypes";
 import {
-  emojiShortcodeExamples,
   emojiShortcodeOptions,
   renderEmojiShortcodes,
   type EmojiShortcodeOption,
@@ -126,9 +140,9 @@ async function readErrorMessage(response: Response) {
   try {
     const data: { error?: string } = await response.json();
 
-    return data.error || "Something went wrong.";
+    return data.error || "We could not complete this request.";
   } catch {
-    return "Something went wrong.";
+    return "We could not complete this request.";
   }
 }
 
@@ -137,40 +151,68 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
   const [moodEntries, setMoodEntries] = useState<SavedMoodEntry[]>([]);
   const [onlineUsernames, setOnlineUsernames] = useState<string[]>([]);
   const [message, setMessage] = useState("");
+  const [selectedImageAttachment, setSelectedImageAttachment] =
+    useState<ChatImageAttachment | null>(null);
   const [composerCursorPosition, setComposerCursorPosition] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingMessageText, setEditingMessageText] = useState("");
+  const [editingImageAttachment, setEditingImageAttachment] =
+    useState<ChatImageAttachment | null>(null);
   const [mutatingMessageId, setMutatingMessageId] = useState<string | null>(
     null,
   );
   const [isManagingCircle, setIsManagingCircle] = useState(false);
   const [roomError, setRoomError] = useState("");
+  const [copiedImageMessageId, setCopiedImageMessageId] = useState<
+    string | null
+  >(null);
+  const [isChatExpanded, setIsChatExpanded] = useState(false);
   const [pulseError, setPulseError] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const editComposerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const copyImageResetTimeoutRef = useRef<number | null>(null);
+  const [editingCursorPosition, setEditingCursorPosition] = useState(0);
 
   const latestPulse = moodEntries[0] ?? null;
   const earlierPulses = moodEntries.slice(1);
   const onlineCount = onlineUsernames.length;
   const trimmedMessage = message.trim();
+  const trimmedEditingMessage = editingMessageText.trim();
   const renderedMessagePreview = renderEmojiShortcodes(message);
   const hasEmojiPreview = renderedMessagePreview !== message;
+  const editingMessage =
+    thread?.messages.find(
+      (circleMessage) => circleMessage.id === editingMessageId,
+    ) ?? null;
   const isCircleOwner =
     thread?.circle.ownerUsername.toLowerCase() === username.toLowerCase();
   const activeEmojiShortcode = findActiveEmojiShortcode(
     message,
     composerCursorPosition,
   );
+  const activeEditEmojiShortcode = findActiveEmojiShortcode(
+    editingMessageText,
+    editingCursorPosition,
+  );
   const emojiSuggestions = activeEmojiShortcode
     ? getEmojiSuggestions(activeEmojiShortcode.query)
     : [];
+  const editEmojiSuggestions = activeEditEmojiShortcode
+    ? getEmojiSuggestions(activeEditEmojiShortcode.query)
+    : [];
   const canSend =
-    trimmedMessage.length > 0 &&
+    (trimmedMessage.length > 0 || Boolean(selectedImageAttachment)) &&
     trimmedMessage.length <= circleMessageLimit &&
     !isSending &&
     Boolean(thread);
+  const canSaveEdit =
+    Boolean(editingMessageId) &&
+    (trimmedEditingMessage.length > 0 || Boolean(editingImageAttachment)) &&
+    trimmedEditingMessage.length <= circleMessageLimit &&
+    !mutatingMessageId;
 
   const loadRoom = useCallback(async () => {
     const [chatResponse, moodsResponse, presenceResponse] = await Promise.all([
@@ -194,7 +236,7 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
     setRoomError("");
 
     if (!moodsResponse.ok) {
-      setPulseError("Circle broadcasts could not be loaded.");
+      setPulseError("Circle check-ins could not be loaded.");
       return;
     }
 
@@ -288,6 +330,15 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [thread?.messages.length]);
 
+  useEffect(
+    () => () => {
+      if (copyImageResetTimeoutRef.current) {
+        window.clearTimeout(copyImageResetTimeoutRef.current);
+      }
+    },
+    [],
+  );
+
   async function handleSendMessage() {
     if (!canSend) {
       return;
@@ -305,6 +356,7 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
         body: JSON.stringify({
           circleId,
           message: trimmedMessage,
+          imageAttachment: selectedImageAttachment,
         }),
       });
 
@@ -313,6 +365,7 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
       }
 
       setMessage("");
+      setSelectedImageAttachment(null);
       setComposerCursorPosition(0);
       await loadRoom();
     } catch (sendError) {
@@ -331,16 +384,42 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
     setComposerCursorPosition(cursorPosition ?? value.length);
   }
 
+  async function handleComposerPaste(
+    event: ClipboardEvent<HTMLTextAreaElement>,
+  ) {
+    const imageFile = getClipboardImageFile(event.clipboardData);
+
+    if (!imageFile) {
+      return;
+    }
+
+    event.preventDefault();
+
+    try {
+      const attachment = await createChatImageAttachmentFromFile(imageFile);
+
+      setSelectedImageAttachment(attachment);
+      setRoomError("");
+    } catch (pasteError) {
+      setRoomError(
+        pasteError instanceof Error
+          ? pasteError.message
+          : "Image could not be attached.",
+      );
+    }
+  }
+
   function handleEmojiSelection(option: EmojiShortcodeOption) {
     const activeShortcode =
       activeEmojiShortcode ??
       findActiveEmojiShortcode(message, composerCursorPosition);
 
     if (!activeShortcode) {
-      const nextMessage = `${message}${message.endsWith(" ") || !message ? "" : " "}${
+      const nextMessage = `${message.slice(0, composerCursorPosition)}${
         option.emoji
-      } `;
-      const nextCursorPosition = nextMessage.length;
+      } ${message.slice(composerCursorPosition)}`;
+      const nextCursorPosition =
+        composerCursorPosition + option.emoji.length + 1;
 
       setMessage(nextMessage);
       setComposerCursorPosition(nextCursorPosition);
@@ -370,21 +449,94 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
     });
   }
 
+  function handleEditComposerChange(
+    value: string,
+    cursorPosition: number | null,
+  ) {
+    setEditingMessageText(value);
+    setEditingCursorPosition(cursorPosition ?? value.length);
+  }
+
+  async function handleEditComposerPaste(
+    event: ClipboardEvent<HTMLTextAreaElement>,
+  ) {
+    const imageFile = getClipboardImageFile(event.clipboardData);
+
+    if (!imageFile) {
+      return;
+    }
+
+    event.preventDefault();
+
+    try {
+      const attachment = await createChatImageAttachmentFromFile(imageFile);
+
+      setEditingImageAttachment(attachment);
+      setRoomError("");
+    } catch (pasteError) {
+      setRoomError(
+        pasteError instanceof Error
+          ? pasteError.message
+          : "Image could not be attached.",
+      );
+    }
+  }
+
+  function handleEditEmojiSelection(option: EmojiShortcodeOption) {
+    const activeShortcode =
+      activeEditEmojiShortcode ??
+      findActiveEmojiShortcode(editingMessageText, editingCursorPosition);
+    const nextMessage = activeShortcode
+      ? `${editingMessageText.slice(0, activeShortcode.start)}${
+          option.emoji
+        } ${editingMessageText.slice(activeShortcode.end)}`
+      : `${editingMessageText.slice(0, editingCursorPosition)}${
+          option.emoji
+        } ${editingMessageText.slice(editingCursorPosition)}`;
+    const nextCursorPosition = activeShortcode
+      ? activeShortcode.start + option.emoji.length + 1
+      : editingCursorPosition + option.emoji.length + 1;
+
+    setEditingMessageText(nextMessage);
+    setEditingCursorPosition(nextCursorPosition);
+    window.requestAnimationFrame(() => {
+      editComposerTextareaRef.current?.focus();
+      editComposerTextareaRef.current?.setSelectionRange(
+        nextCursorPosition,
+        nextCursorPosition,
+      );
+    });
+  }
+
   function startEditingMessage(circleMessage: CircleMessage) {
     setEditingMessageId(circleMessage.id);
     setEditingMessageText(circleMessage.message);
+    setEditingImageAttachment(circleMessage.imageAttachment ?? null);
+    setEditingCursorPosition(circleMessage.message.length);
     setRoomError("");
+    window.requestAnimationFrame(() => {
+      editComposerTextareaRef.current?.focus();
+      editComposerTextareaRef.current?.setSelectionRange(
+        circleMessage.message.length,
+        circleMessage.message.length,
+      );
+    });
   }
 
   function cancelEditingMessage() {
     setEditingMessageId(null);
     setEditingMessageText("");
+    setEditingImageAttachment(null);
+    setEditingCursorPosition(0);
   }
 
   async function handleEditMessage(messageId: string) {
     const cleanMessage = editingMessageText.trim();
 
-    if (!cleanMessage || cleanMessage.length > circleMessageLimit) {
+    if (
+      (!cleanMessage && !editingImageAttachment) ||
+      cleanMessage.length > circleMessageLimit
+    ) {
       return;
     }
 
@@ -400,6 +552,7 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
         body: JSON.stringify({
           id: messageId,
           message: cleanMessage,
+          imageAttachment: editingImageAttachment,
         }),
       });
 
@@ -459,6 +612,35 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
     }
   }
 
+  async function handleCopyMessageImage(circleMessage: CircleMessage) {
+    if (!circleMessage.imageAttachment) {
+      return;
+    }
+
+    setRoomError("");
+
+    try {
+      await copyChatImageAttachmentToClipboard(circleMessage.imageAttachment);
+      setCopiedImageMessageId(circleMessage.id);
+
+      if (copyImageResetTimeoutRef.current) {
+        window.clearTimeout(copyImageResetTimeoutRef.current);
+      }
+
+      copyImageResetTimeoutRef.current = window.setTimeout(() => {
+        setCopiedImageMessageId((currentMessageId) =>
+          currentMessageId === circleMessage.id ? null : currentMessageId,
+        );
+      }, 1600);
+    } catch (copyError) {
+      setRoomError(
+        copyError instanceof Error
+          ? copyError.message
+          : "Image could not be copied.",
+      );
+    }
+  }
+
   async function handleCircleMembershipAction(action: "delete" | "leave") {
     if (!thread) {
       return;
@@ -468,7 +650,7 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
     const shouldContinue = window.confirm(
       isDeleting
         ? `Delete ${thread.circle.name}? This removes every member and CircleChat message.`
-        : `Leave ${thread.circle.name}? It will disappear from your circles.`,
+        : `Leave ${thread.circle.name}? It will be removed from your circles.`,
     );
 
     if (!shouldContinue) {
@@ -508,7 +690,9 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
   return (
     <section
       aria-labelledby="circle-room-title"
-      className="mx-auto w-full max-w-7xl px-6 py-8"
+      className={`mx-auto w-full px-6 py-8 ${
+        isChatExpanded ? "max-w-[96rem]" : "max-w-7xl"
+      }`}
     >
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -522,8 +706,8 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
             {thread?.circle.name ?? "Circle"}
           </h1>
           <p className="mt-3 max-w-2xl leading-7 text-slate-700">
-            Shared feelings collect in the pulse board, while CircleChat stays
-            ready for quick replies and check-ins.
+            Shared check-ins appear on the pulse board, while CircleChat keeps
+            group conversation in one place.
           </p>
           {thread ? (
             <p className="mt-3 text-sm font-bold text-emerald-700">
@@ -533,7 +717,7 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
         </div>
         <div className="flex flex-wrap gap-2">
           <Link className="btn btn-primary btn-sm" href="/mood/check-in">
-            Broadcast a check-in
+            Share a check-in
           </Link>
           <Link className="btn btn-secondary btn-sm" href="/circles">
             Back to circles
@@ -567,8 +751,12 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
         </p>
       ) : null}
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_26rem]">
-        <div className="grid gap-5">
+      <div
+        className={`grid gap-5 ${
+          isChatExpanded ? "" : "xl:grid-cols-[minmax(0,1fr)_26rem]"
+        }`}
+      >
+        <div className={isChatExpanded ? "hidden" : "grid gap-5"}>
           <div className="motion-panel rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
@@ -576,12 +764,12 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
                   Circle pulse
                 </p>
                 <h2 className="mt-1 text-2xl font-bold text-slate-950">
-                  Feelings broadcast here.
+                  Shared check-ins appear here.
                 </h2>
               </div>
               <span className="rounded-md bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700">
                 {moodEntries.length}{" "}
-                {moodEntries.length === 1 ? "broadcast" : "broadcasts"}
+                {moodEntries.length === 1 ? "check-in" : "check-ins"}
               </span>
             </div>
 
@@ -615,17 +803,17 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
           {!isLoading && !latestPulse ? (
             <div className="motion-panel rounded-md border border-dashed border-slate-300 bg-white p-6">
               <p className="text-sm font-semibold uppercase tracking-normal text-teal-700">
-                Quiet for now
+                No shared check-ins yet
               </p>
               <h2 className="mt-2 text-2xl font-bold text-slate-950">
-                No one has broadcast a feeling to this circle yet.
+                No one has shared a check-in with this circle yet.
               </h2>
               <p className="mt-3 max-w-2xl leading-7 text-slate-600">
-                When a member shares a mood check-in to this circle, it will
-                appear here as a pulse card with their support signal and note.
+                When a member shares a check-in with this circle, it will appear
+                here with their support preference and note.
               </p>
               <Link className="btn btn-primary mt-5" href="/mood/check-in">
-                Start the first pulse
+                Share the first check-in
               </Link>
             </div>
           ) : null}
@@ -636,7 +824,7 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
               <div className="grid gap-3">
                 <div className="flex items-center justify-between gap-3">
                   <h2 className="text-lg font-bold text-slate-950">
-                    Earlier pulses
+                    Earlier check-ins
                   </h2>
                   <p className="text-xs font-bold uppercase tracking-normal text-slate-500">
                     Live refresh
@@ -645,7 +833,7 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
 
                 {earlierPulses.length === 0 ? (
                   <div className="rounded-md border border-dashed border-slate-300 bg-white p-5 text-sm font-semibold leading-6 text-slate-600">
-                    The latest broadcast is holding the room for now.
+                    The latest shared check-in is the only one in this room.
                   </div>
                 ) : null}
 
@@ -657,19 +845,37 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
           ) : null}
         </div>
 
-        <aside className="motion-panel grid h-[calc(100vh-12rem)] min-h-[34rem] grid-rows-[auto_1fr_auto] overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm xl:sticky xl:top-4">
-          <div className="border-b border-slate-200 bg-white p-4">
-            <p className="text-sm font-semibold uppercase tracking-normal text-teal-700">
-              CircleChat
-            </p>
-            <h2 className="mt-1 text-xl font-bold text-slate-950">
-              Quick replies
-            </h2>
-            <p className="mt-1 text-sm font-semibold text-slate-500">
-              {thread
-                ? `${onlineCount} online of ${thread.circle.memberUsernames.length}`
-                : "Loading members..."}
-            </p>
+        <aside
+          className={`motion-panel grid grid-rows-[auto_1fr_auto] overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm ${
+            isChatExpanded
+              ? "h-[calc(100vh-9rem)] min-h-[44rem]"
+              : "h-[calc(100vh-12rem)] min-h-[34rem] xl:sticky xl:top-4"
+          }`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white p-4">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-normal text-teal-700">
+                CircleChat
+              </p>
+              <h2 className="mt-1 text-xl font-bold text-slate-950">
+                Group conversation
+              </h2>
+              <p className="mt-1 text-sm font-semibold text-slate-500">
+                {thread
+                  ? `${onlineCount} online of ${thread.circle.memberUsernames.length}`
+                  : "Loading members..."}
+              </p>
+            </div>
+            <button
+              aria-pressed={isChatExpanded}
+              className="btn btn-secondary btn-sm"
+              onClick={() =>
+                setIsChatExpanded((currentIsExpanded) => !currentIsExpanded)
+              }
+              type="button"
+            >
+              {isChatExpanded ? "Minimize chat" : "Expand chat"}
+            </button>
           </div>
 
           <div className="min-h-0 overflow-y-auto bg-slate-50 p-4">
@@ -682,7 +888,7 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
             {!isLoading && thread?.messages.length === 0 ? (
               <div className="mx-auto mt-12 max-w-sm rounded-md border border-dashed border-slate-300 bg-white p-5 text-center">
                 <p className="text-sm font-semibold leading-6 text-slate-600">
-                  No messages yet. Reply to a pulse or start a quick check-in.
+                  No messages yet. Reply to a check-in or start the discussion.
                 </p>
               </div>
             ) : null}
@@ -690,16 +896,14 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
             <div className="grid gap-3">
               {thread?.messages.map((circleMessage) => (
                 <CircleChatBubble
-                  editingText={editingMessageText}
-                  isEditing={editingMessageId === circleMessage.id}
+                  isExpanded={isChatExpanded}
                   isMine={circleMessage.fromUsername === username}
+                  isImageCopied={copiedImageMessageId === circleMessage.id}
                   isMutating={mutatingMessageId === circleMessage.id}
                   key={circleMessage.id}
                   message={circleMessage}
-                  onCancelEdit={cancelEditingMessage}
+                  onCopyImage={() => void handleCopyMessageImage(circleMessage)}
                   onDelete={() => void handleDeleteMessage(circleMessage)}
-                  onEditTextChange={setEditingMessageText}
-                  onSaveEdit={() => void handleEditMessage(circleMessage.id)}
                   onStartEdit={() => startEditingMessage(circleMessage)}
                 />
               ))}
@@ -708,102 +912,256 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
           </div>
 
           <div className="border-t border-slate-200 bg-white p-4">
-            <div className="flex flex-col gap-3">
-              <textarea
-                className="min-h-12 resize-none rounded-md border border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-900 outline-none focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100"
-                disabled={!thread || isSending}
-                maxLength={circleMessageLimit}
-                onChange={(event) =>
-                  handleComposerChange(
-                    event.target.value,
-                    event.target.selectionStart,
-                  )
-                }
-                onClick={(event) =>
-                  setComposerCursorPosition(event.currentTarget.selectionStart)
-                }
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-
-                    if (emojiSuggestions.length > 0) {
-                      handleEmojiSelection(emojiSuggestions[0]);
-                      return;
-                    }
-
-                    void handleSendMessage();
-                  }
-                }}
-                onKeyUp={(event) =>
-                  setComposerCursorPosition(event.currentTarget.selectionStart)
-                }
-                onSelect={(event) =>
-                  setComposerCursorPosition(event.currentTarget.selectionStart)
-                }
-                placeholder="Message this circle..."
-                ref={composerTextareaRef}
-                value={message}
-              />
-              <button
-                className="btn btn-primary"
-                disabled={!canSend}
-                onClick={() => void handleSendMessage()}
-                type="button"
-              >
-                {isSending ? "Sending..." : "Send"}
-              </button>
-            </div>
-
-            {emojiSuggestions.length > 0 ? (
-              <div className="emoji-suggestions mt-3 rounded-md border border-teal-100 bg-teal-50 p-3">
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs font-bold uppercase tracking-normal text-teal-800">
-                    Emoji matches
-                  </p>
-                  {activeEmojiShortcode ? (
-                    <p className="text-xs font-semibold text-teal-800">
-                      :{activeEmojiShortcode.query}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {emojiSuggestions.map((option) => (
+            {editingMessage ? (
+              <>
+                <div className="mb-3 rounded-md border-l-4 border-teal-500 bg-teal-50 px-3 py-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-black uppercase tracking-normal text-teal-800">
+                        Editing CircleChat message
+                      </p>
+                      <p className="mt-1 truncate text-sm font-semibold text-slate-700">
+                        {editingMessage.message
+                          ? renderEmojiShortcodes(editingMessage.message)
+                          : "Photo"}
+                      </p>
+                    </div>
                     <button
-                      className="mood-chip bg-white"
-                      key={option.shortcode}
-                      onClick={() => handleEmojiSelection(option)}
+                      className="rounded-md px-2 py-1 text-xs font-black text-slate-500 transition hover:bg-white hover:text-slate-900"
+                      disabled={Boolean(mutatingMessageId)}
+                      onClick={cancelEditingMessage}
                       type="button"
                     >
-                      <span className="mr-2 text-base">{option.emoji}</span>
-                      {option.shortcode}
+                      Cancel
                     </button>
-                  ))}
+                  </div>
                 </div>
-              </div>
-            ) : null}
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <EmojiPicker
+                    disabled={Boolean(mutatingMessageId)}
+                    onSelect={handleEditEmojiSelection}
+                  />
+                  <textarea
+                    className="min-h-10 flex-1 resize-none rounded-md border border-teal-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100"
+                    disabled={Boolean(mutatingMessageId)}
+                    maxLength={circleMessageLimit}
+                    onChange={(event) =>
+                      handleEditComposerChange(
+                        event.target.value,
+                        event.target.selectionStart,
+                      )
+                    }
+                    onClick={(event) =>
+                      setEditingCursorPosition(
+                        event.currentTarget.selectionStart,
+                      )
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
 
-            {hasEmojiPreview ? (
-              <div className="emoji-preview mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-bold uppercase tracking-normal text-slate-500">
-                  Preview
-                </p>
-                <p className="mt-1 whitespace-pre-wrap text-sm font-semibold text-slate-800">
-                  {renderedMessagePreview}
-                </p>
-              </div>
-            ) : null}
+                        if (editEmojiSuggestions.length > 0) {
+                          handleEditEmojiSelection(editEmojiSuggestions[0]);
+                          return;
+                        }
 
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-semibold text-slate-500">
-                Enter sends, Shift + Enter adds a line.
-              </p>
-              <p className="text-xs font-semibold text-slate-500">
-                {message.length}/{circleMessageLimit}
-              </p>
-            </div>
-            <p className="mt-2 text-xs font-semibold text-slate-500">
-              Emoji shortcodes: {emojiShortcodeExamples.join(", ")}.
-            </p>
+                        if (canSaveEdit && editingMessageId) {
+                          void handleEditMessage(editingMessageId);
+                        }
+                      }
+                    }}
+                    onKeyUp={(event) =>
+                      setEditingCursorPosition(
+                        event.currentTarget.selectionStart,
+                      )
+                    }
+                    onPaste={(event) => void handleEditComposerPaste(event)}
+                    onSelect={(event) =>
+                      setEditingCursorPosition(
+                        event.currentTarget.selectionStart,
+                      )
+                    }
+                    placeholder="Edit message..."
+                    ref={editComposerTextareaRef}
+                    value={editingMessageText}
+                  />
+                  <button
+                    className="btn btn-primary"
+                    disabled={!canSaveEdit || !editingMessageId}
+                    onClick={() =>
+                      editingMessageId
+                        ? void handleEditMessage(editingMessageId)
+                        : undefined
+                    }
+                    type="button"
+                  >
+                    {mutatingMessageId ? "Saving..." : "Save"}
+                  </button>
+                </div>
+
+                <ChatImageAttachmentInput
+                  attachment={editingImageAttachment}
+                  density="compact"
+                  disabled={Boolean(mutatingMessageId)}
+                  onAttachmentChange={setEditingImageAttachment}
+                  onError={setRoomError}
+                  tone="teal"
+                />
+
+                {editEmojiSuggestions.length > 0 ? (
+                  <div className="emoji-suggestions mt-3 rounded-md border border-teal-100 bg-teal-50 p-3">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-bold uppercase tracking-normal text-teal-800">
+                        Emoji matches
+                      </p>
+                      {activeEditEmojiShortcode ? (
+                        <p className="text-xs font-semibold text-teal-800">
+                          :{activeEditEmojiShortcode.query}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {editEmojiSuggestions.map((option) => (
+                        <button
+                          className="mood-chip bg-white"
+                          key={option.shortcode}
+                          onClick={() => handleEditEmojiSelection(option)}
+                          type="button"
+                        >
+                          <span className="mr-2 text-base">{option.emoji}</span>
+                          {option.shortcode}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-slate-500">
+                    Press Enter to save. Use Shift + Enter for a new line.
+                  </p>
+                  <p className="text-xs font-semibold text-slate-500">
+                    {editingMessageText.length}/{circleMessageLimit}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <EmojiPicker
+                    disabled={!thread || isSending}
+                    onSelect={handleEmojiSelection}
+                  />
+                  <textarea
+                    className="min-h-10 flex-1 resize-none rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100"
+                    disabled={!thread || isSending}
+                    maxLength={circleMessageLimit}
+                    onChange={(event) =>
+                      handleComposerChange(
+                        event.target.value,
+                        event.target.selectionStart,
+                      )
+                    }
+                    onClick={(event) =>
+                      setComposerCursorPosition(
+                        event.currentTarget.selectionStart,
+                      )
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+
+                        if (emojiSuggestions.length > 0) {
+                          handleEmojiSelection(emojiSuggestions[0]);
+                          return;
+                        }
+
+                        void handleSendMessage();
+                      }
+                    }}
+                    onKeyUp={(event) =>
+                      setComposerCursorPosition(
+                        event.currentTarget.selectionStart,
+                      )
+                    }
+                    onPaste={(event) => void handleComposerPaste(event)}
+                    onSelect={(event) =>
+                      setComposerCursorPosition(
+                        event.currentTarget.selectionStart,
+                      )
+                    }
+                    placeholder="Write to this circle..."
+                    ref={composerTextareaRef}
+                    value={message}
+                  />
+                  <button
+                    className="btn btn-primary"
+                    disabled={!canSend}
+                    onClick={() => void handleSendMessage()}
+                    type="button"
+                  >
+                    {isSending ? "Sending..." : "Send"}
+                  </button>
+                </div>
+
+                <ChatImageAttachmentInput
+                  attachment={selectedImageAttachment}
+                  density="compact"
+                  disabled={!thread || isSending}
+                  onAttachmentChange={setSelectedImageAttachment}
+                  onError={setRoomError}
+                  tone="teal"
+                />
+
+                {emojiSuggestions.length > 0 ? (
+                  <div className="emoji-suggestions mt-3 rounded-md border border-teal-100 bg-teal-50 p-3">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-bold uppercase tracking-normal text-teal-800">
+                        Emoji matches
+                      </p>
+                      {activeEmojiShortcode ? (
+                        <p className="text-xs font-semibold text-teal-800">
+                          :{activeEmojiShortcode.query}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {emojiSuggestions.map((option) => (
+                        <button
+                          className="mood-chip bg-white"
+                          key={option.shortcode}
+                          onClick={() => handleEmojiSelection(option)}
+                          type="button"
+                        >
+                          <span className="mr-2 text-base">{option.emoji}</span>
+                          {option.shortcode}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {hasEmojiPreview ? (
+                  <div className="emoji-preview mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-bold uppercase tracking-normal text-slate-500">
+                      Preview
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm font-semibold text-slate-800">
+                      {renderedMessagePreview}
+                    </p>
+                  </div>
+                ) : null}
+
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-slate-500">
+                    Press Enter to send. Use Shift + Enter for a new line.
+                  </p>
+                  <p className="text-xs font-semibold text-slate-500">
+                    {message.length}/{circleMessageLimit}
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         </aside>
       </div>
@@ -818,7 +1176,7 @@ function PulseFeature({ entry }: { entry: SavedMoodEntry }) {
     <article className="motion-panel relative overflow-hidden rounded-md border border-slate-200 bg-white p-6 shadow-sm">
       <div className={`absolute inset-y-0 left-0 w-1.5 ${tone.line}`} />
       <p className="text-sm font-semibold uppercase tracking-normal text-slate-500">
-        Latest broadcast
+        Latest shared check-in
       </p>
       <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -954,113 +1312,97 @@ function MemberPresenceChips({
 }
 
 function CircleChatBubble({
-  editingText,
-  isEditing,
+  isExpanded,
   isMine,
+  isImageCopied,
   isMutating,
   message,
-  onCancelEdit,
+  onCopyImage,
   onDelete,
-  onEditTextChange,
-  onSaveEdit,
   onStartEdit,
 }: {
-  editingText: string;
-  isEditing: boolean;
+  isExpanded: boolean;
   isMine: boolean;
+  isImageCopied: boolean;
   isMutating: boolean;
   message: CircleMessage;
-  onCancelEdit: () => void;
+  onCopyImage: () => void;
   onDelete: () => void;
-  onEditTextChange: (value: string) => void;
-  onSaveEdit: () => void;
   onStartEdit: () => void;
 }) {
-  const canSaveEdit =
-    editingText.trim().length > 0 &&
-    editingText.trim().length <= circleMessageLimit &&
-    !isMutating;
+  const bubbleWidthClass = isExpanded
+    ? "max-w-[92%] sm:max-w-[34rem] lg:max-w-[44rem]"
+    : "max-w-[88%]";
+  const hasActions = Boolean(message.imageAttachment) || isMine;
 
   return (
     <div
-      className={`chat-bubble flex ${
+      className={`chat-bubble relative focus-within:z-10 flex ${
         isMine ? "chat-bubble-mine justify-end" : "justify-start"
       }`}
     >
       <div
-        className={`max-w-[88%] rounded-md px-4 py-3 shadow-sm ${
+        className={`${bubbleWidthClass} rounded-md px-4 py-3 shadow-sm ${
           isMine
             ? "bg-teal-700 text-white"
             : "border border-slate-200 bg-white text-slate-900"
         }`}
       >
-        {isEditing ? (
-          <div className="grid gap-3">
-            <textarea
-              className="min-h-24 w-full resize-none rounded-md border border-teal-200 bg-white p-3 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-              maxLength={circleMessageLimit}
-              onChange={(event) => onEditTextChange(event.target.value)}
-              value={editingText}
+        {!isMine ? (
+          <p className="mb-1 text-xs font-bold text-teal-700">
+            @{message.fromUsername}
+          </p>
+        ) : null}
+        {message.imageAttachment ? (
+          <a
+            aria-label={`Open ${message.imageAttachment.name}`}
+            className="mb-3 block outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            href={message.imageAttachment.dataUrl}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <img
+              alt={message.imageAttachment.name}
+              className={`block max-w-full rounded-md border ${
+                isExpanded ? "max-h-64" : "max-h-48"
+              } ${isMine ? "border-white/20" : "border-slate-200"}`}
+              src={message.imageAttachment.dataUrl}
             />
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <button
-                className="btn btn-secondary btn-sm"
-                disabled={isMutating}
-                onClick={onCancelEdit}
-                type="button"
-              >
-                Cancel
-              </button>
-              <button
-                className="btn btn-primary btn-sm"
-                disabled={!canSaveEdit}
-                onClick={onSaveEdit}
-                type="button"
-              >
-                {isMutating ? "Saving..." : "Save"}
-              </button>
-            </div>
+          </a>
+        ) : null}
+        {message.message ? (
+          <p className="whitespace-pre-wrap leading-6">
+            {renderEmojiShortcodes(message.message)}
+          </p>
+        ) : null}
+        <div
+          className={`mt-2 flex flex-wrap items-center justify-end gap-2 text-xs font-semibold ${
+            isMine ? "text-teal-50" : "text-slate-500"
+          }`}
+        >
+          <span>{formatChatTime(message.createdAt)}</span>
+          {message.editedAt ? <span>Edited</span> : null}
+        </div>
+        {hasActions ? (
+          <div
+            className={`mt-3 flex flex-wrap gap-2 ${
+              isMine ? "justify-end" : "justify-start"
+            }`}
+          >
+            <MessageActionsMenu
+              align={isMine ? "right" : "left"}
+              canCopyImage={Boolean(message.imageAttachment)}
+              canDelete={isMine}
+              canEdit={isMine}
+              disabled={isMutating}
+              isImageCopied={isImageCopied}
+              onCopyImage={onCopyImage}
+              onDelete={onDelete}
+              onEdit={onStartEdit}
+              surface={isMine ? "mine" : "default"}
+            />
           </div>
-        ) : (
-          <>
-            {!isMine ? (
-              <p className="mb-1 text-xs font-bold text-teal-700">
-                @{message.fromUsername}
-              </p>
-            ) : null}
-            <p className="whitespace-pre-wrap leading-6">
-              {renderEmojiShortcodes(message.message)}
-            </p>
-            <div
-              className={`mt-2 flex flex-wrap items-center justify-end gap-2 text-xs font-semibold ${
-                isMine ? "text-teal-50" : "text-slate-500"
-              }`}
-            >
-              <span>{formatChatTime(message.createdAt)}</span>
-              {message.editedAt ? <span>Edited</span> : null}
-            </div>
-            {isMine ? (
-              <div className="mt-3 flex flex-wrap justify-end gap-2">
-                <button
-                  className="rounded-md bg-white/10 px-2 py-1 text-xs font-bold text-white transition hover:bg-white/20"
-                  disabled={isMutating}
-                  onClick={onStartEdit}
-                  type="button"
-                >
-                  Edit
-                </button>
-                <button
-                  className="rounded-md bg-white/10 px-2 py-1 text-xs font-bold text-white transition hover:bg-white/20"
-                  disabled={isMutating}
-                  onClick={onDelete}
-                  type="button"
-                >
-                  {isMutating ? "Deleting..." : "Delete"}
-                </button>
-              </div>
-            ) : null}
-          </>
-        )}
+        ) : null}
       </div>
     </div>
   );

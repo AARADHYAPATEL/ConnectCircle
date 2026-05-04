@@ -54,7 +54,7 @@ export function MoodEntryEditor({ entryId }: MoodEntryEditorProps) {
         ]);
 
         if (!entriesResponse.ok) {
-          throw new Error("Could not load mood entries.");
+          throw new Error("Could not load check-ins.");
         }
 
         const data: { entries: SavedMoodEntry[] } =
@@ -82,7 +82,7 @@ export function MoodEntryEditor({ entryId }: MoodEntryEditorProps) {
         }
       } catch {
         if (isActive) {
-          setError("This mood entry could not be loaded.");
+          setError("This check-in could not be loaded.");
         }
       } finally {
         if (isActive) {
@@ -138,12 +138,12 @@ export function MoodEntryEditor({ entryId }: MoodEntryEditorProps) {
       });
 
       if (!response.ok) {
-        throw new Error("Mood entry could not be updated.");
+        throw new Error("Check-in could not be updated.");
       }
 
-      setSuccessMessage("Mood entry updated.");
+      setSuccessMessage("Check-in updated.");
     } catch {
-      setError("Something went wrong while updating this entry.");
+      setError("We could not update this check-in. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -152,7 +152,7 @@ export function MoodEntryEditor({ entryId }: MoodEntryEditorProps) {
   if (isLoading) {
     return (
       <div className="rounded-md border border-slate-200 bg-white p-5 text-sm font-semibold text-slate-600">
-        Loading entry...
+        Loading check-in...
       </div>
     );
   }
@@ -165,7 +165,7 @@ export function MoodEntryEditor({ entryId }: MoodEntryEditorProps) {
           className="btn btn-danger btn-sm mt-4"
           href="/mood/entries"
         >
-          Back to entries
+          Back to history
         </Link>
       </div>
     );
@@ -177,12 +177,12 @@ export function MoodEntryEditor({ entryId }: MoodEntryEditorProps) {
       className="rounded-md border border-slate-200 bg-white p-5 shadow-sm"
     >
       <div>
-        <p className="text-sm font-semibold text-slate-500">Existing entry</p>
+        <p className="text-sm font-semibold text-slate-500">Saved check-in</p>
         <h2
           className="mt-1 text-2xl font-bold text-slate-950"
           id="edit-mood-entry-title"
         >
-          Edit mood entry
+          Edit check-in
         </h2>
       </div>
 
@@ -191,18 +191,18 @@ export function MoodEntryEditor({ entryId }: MoodEntryEditorProps) {
           className="block text-sm font-semibold text-slate-800"
           htmlFor="edit-mood-text"
         >
-          Mood
+          Mood or feeling
         </label>
         <input
           className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-base font-semibold text-slate-950 outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
           id="edit-mood-text"
           maxLength={moodLimit}
           onChange={(event) => handleMoodInput(event.target.value)}
-          placeholder="nervous but excited, peaceful, left out..."
+          placeholder="Nervous but excited, peaceful, left out..."
           value={moodText}
         />
         <div className="mt-2 flex items-center justify-between gap-3 text-xs font-semibold text-slate-500">
-          <span>Use your own words or tap a starter below.</span>
+          <span>Use a suggestion or keep your own wording.</span>
           <span>
             {moodText.length}/{moodLimit}
           </span>
@@ -211,7 +211,7 @@ export function MoodEntryEditor({ entryId }: MoodEntryEditorProps) {
 
       <fieldset className="mt-5">
         <legend className="text-sm font-semibold text-slate-700">
-          Quick mood words
+          Suggested mood words
         </legend>
         <div className="mt-3 flex flex-wrap gap-2">
           {moodSuggestions.map((suggestion) => {
@@ -235,7 +235,7 @@ export function MoodEntryEditor({ entryId }: MoodEntryEditorProps) {
       </fieldset>
 
       <label className="mt-5 block text-sm font-semibold text-slate-700">
-        How strong does it feel?
+        Intensity
         <span className="ml-2 text-slate-500">{intensity}/5</span>
         <input
           className="mt-3 block w-full accent-teal-700"
@@ -251,7 +251,7 @@ export function MoodEntryEditor({ entryId }: MoodEntryEditorProps) {
       </label>
 
       <label className="mt-5 block text-sm font-semibold text-slate-700">
-        Support signal
+        Support preference
         <select
           className="mt-2 w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-3 text-sm font-semibold text-slate-800 outline-none focus:border-teal-500 focus:bg-white"
           onChange={(event) => {
@@ -268,7 +268,7 @@ export function MoodEntryEditor({ entryId }: MoodEntryEditorProps) {
 
       {sharedCircleIds.length > 0 ? (
         <p className="mt-4 rounded-md border border-sky-200 bg-sky-50 p-3 text-sm font-semibold text-sky-900">
-          Broadcast to {getCircleSharingTargetText(sharedCircleIds, circles)}.
+          Shared with {getCircleSharingTargetText(sharedCircleIds, circles)}.
         </p>
       ) : sharedWith.length > 0 ? (
         <p className="mt-4 rounded-md border border-sky-200 bg-sky-50 p-3 text-sm font-semibold text-sky-900">
@@ -278,7 +278,7 @@ export function MoodEntryEditor({ entryId }: MoodEntryEditorProps) {
       ) : null}
 
       <label className="mt-5 block text-sm font-semibold text-slate-700">
-        Context
+        Additional context
         <textarea
           className="mt-2 min-h-28 w-full resize-none rounded-md border border-slate-300 bg-slate-50 p-3 text-sm text-slate-900 outline-none focus:border-teal-500 focus:bg-white"
           maxLength={noteLimit}
@@ -307,7 +307,7 @@ export function MoodEntryEditor({ entryId }: MoodEntryEditorProps) {
           className="btn btn-secondary"
           href="/mood/entries"
         >
-          Back to entries
+          Back to history
         </Link>
       </div>
 

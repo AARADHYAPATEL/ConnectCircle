@@ -34,17 +34,17 @@ const rangeOptions: Array<{
   value: TrendRange;
 }> = [
   {
-    description: "Last seven days",
+    description: "Last 7 days",
     label: "Weekly",
     value: "weekly",
   },
   {
-    description: "This month by week",
+    description: "Current month by week",
     label: "Monthly",
     value: "monthly",
   },
   {
-    description: "This year by month",
+    description: "Current year by month",
     label: "Yearly",
     value: "yearly",
   },
@@ -234,20 +234,20 @@ function getSupportCounts(entries: SavedMoodEntry[]) {
 
 function getTrendCopy(range: TrendRange, entryCount: number, averageIntensity: number) {
   if (entryCount === 0) {
-    return "No check-ins in this window yet. Add a few entries and this panel will start drawing a pattern.";
+    return "No check-ins in this range yet. Add a few entries and this panel will begin showing patterns.";
   }
 
   if (averageIntensity >= 4) {
     return range === "weekly"
-      ? "This week has carried a stronger emotional signal. Make room for recovery after the high points."
-      : "The recent pattern is running intense. Your check-ins are flagging a season worth treating gently.";
+      ? "This week shows a stronger emotional signal. Consider where recovery or support may be useful."
+      : "This period is showing higher intensity. Treat the pattern as a signal worth reviewing carefully.";
   }
 
   if (averageIntensity <= 2.25) {
-    return "The pattern is sitting on the quieter side. That can mean steadiness, fatigue, or a low-energy stretch.";
+    return "The pattern is lower in intensity. That may reflect steadiness, fatigue, or a lower-energy period.";
   }
 
-  return "The pattern is balanced with movement. Look at the peaks and repeats to understand what shaped it.";
+  return "The pattern is balanced with some movement. Review the peaks and repeats to understand what shaped it.";
 }
 
 export function MoodTrendsDashboard({
@@ -289,11 +289,11 @@ export function MoodTrendsDashboard({
             className="mt-2 text-4xl font-bold leading-tight text-slate-950"
             id="mood-trends-title"
           >
-            Patterns hiding inside your check-ins.
+            Patterns across your check-ins.
           </h1>
           <p className="mt-4 max-w-2xl leading-7 text-slate-700">
-            Built from @{username}&apos;s saved mood entries. Switch the lens to
-            see daily rhythm, month shape, or the year&apos;s longer arc.
+            Built from @{username}&apos;s saved entries. Switch views to compare
+            daily rhythm, weekly changes, and the longer yearly pattern.
           </p>
         </div>
 
@@ -328,11 +328,11 @@ export function MoodTrendsDashboard({
       {entries.length === 0 ? (
         <div className="motion-panel mt-8 rounded-md border border-dashed border-slate-300 bg-white p-6">
           <h2 className="text-2xl font-bold text-slate-950">
-            Your trends are waiting for the first check-in.
+            Trends will appear after your first check-in.
           </h2>
           <p className="mt-3 max-w-2xl leading-7 text-slate-600">
-            Once you save mood entries, this page will turn them into trend
-            lines, mood clusters, and support-signal patterns.
+            Once you save entries, this page will turn them into trend lines,
+            mood clusters, and support-preference patterns.
           </p>
           <Link className="btn btn-primary mt-5" href="/mood/check-in">
             Start a check-in
@@ -345,7 +345,7 @@ export function MoodTrendsDashboard({
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 p-5">
             <div>
               <p className="text-sm font-semibold uppercase tracking-normal text-teal-700">
-                Intensity skyline
+                Intensity trend
               </p>
               <h2 className="mt-1 text-2xl font-bold text-slate-950">
                 {rangeOptions.find((option) => option.value === range)?.label} arc
@@ -363,8 +363,8 @@ export function MoodTrendsDashboard({
 
         <div className="grid gap-5">
           <StatCard label="Check-ins" value={String(checkInCount)} />
-          <StatCard label="Most repeated mood" value={mostFrequentMood} />
-          <StatCard label="Highest point" value={peakLabel} />
+          <StatCard label="Most frequent mood" value={mostFrequentMood} />
+          <StatCard label="Highest average" value={peakLabel} />
         </div>
       </div>
 
@@ -527,7 +527,7 @@ function MoodOrbit({ clusters }: { clusters: MoodCluster[] }) {
             Mood orbit
           </p>
           <h2 className="mt-1 text-2xl font-bold text-slate-950">
-            Repeated feelings cluster here.
+            Repeated feelings appear here.
           </h2>
         </div>
       </div>
@@ -539,7 +539,7 @@ function MoodOrbit({ clusters }: { clusters: MoodCluster[] }) {
 
         {clusters.length === 0 ? (
           <p className="absolute inset-x-8 top-1/2 -translate-y-1/2 text-center text-sm font-semibold leading-6 text-slate-600">
-            No mood clusters in this range yet.
+            No repeated moods in this range yet.
           </p>
         ) : null}
 
@@ -588,10 +588,10 @@ function SupportSignalBars({
   return (
     <section className="motion-panel rounded-md border border-slate-200 bg-white p-5 shadow-sm">
       <p className="text-sm font-semibold uppercase tracking-normal text-teal-700">
-        Support signal
+        Support preferences
       </p>
       <h2 className="mt-1 text-2xl font-bold text-slate-950">
-        What you kept asking for.
+        What you requested most often.
       </h2>
 
       <div className="mt-6 grid gap-4">
@@ -634,10 +634,10 @@ function MoodHeatmap({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-normal text-teal-700">
-            Emotional weather
+            Intensity map
           </p>
           <h2 className="mt-1 text-2xl font-bold text-slate-950">
-            Color by average intensity.
+            Average intensity by period.
           </h2>
         </div>
         <p className="text-sm font-semibold text-slate-500">

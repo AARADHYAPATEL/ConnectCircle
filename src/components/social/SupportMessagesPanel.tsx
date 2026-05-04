@@ -40,9 +40,9 @@ async function readErrorMessage(response: Response) {
   try {
     const data: { error?: string } = await response.json();
 
-    return data.error || "Something went wrong.";
+    return data.error || "We could not complete this request.";
   } catch {
-    return "Something went wrong.";
+    return "We could not complete this request.";
   }
 }
 
@@ -157,7 +157,7 @@ export function SupportMessagesPanel({ username }: SupportMessagesPanelProps) {
       }
 
       setMessage("");
-      setSuccessMessage(`Support sent to @${selectedFriendUsername}.`);
+      setSuccessMessage(`Support note sent to @${selectedFriendUsername}.`);
       await loadSupportMessages();
     } catch (sendError) {
       setError(
@@ -179,17 +179,17 @@ export function SupportMessagesPanel({ username }: SupportMessagesPanelProps) {
         <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
           <div>
             <p className="text-sm font-semibold uppercase tracking-normal text-rose-700">
-              Support messages
+              Support notes
             </p>
             <h2
               className="mt-2 text-3xl font-bold leading-tight text-slate-950"
               id="support-messages-title"
             >
-              Send something kind to a friend.
+              Send a supportive note.
             </h2>
             <p className="mt-3 leading-7 text-slate-700">
-              Choose an accepted friend and send a short supportive note they
-              can read when they open their social space.
+              Choose an accepted friend and send a concise note they can read
+              when they open their social space.
             </p>
           </div>
 
@@ -221,7 +221,7 @@ export function SupportMessagesPanel({ username }: SupportMessagesPanelProps) {
               className="mt-4 block text-sm font-semibold text-slate-800"
               htmlFor="support-message"
             >
-              Message
+              Note
             </label>
             <textarea
               className="mt-2 min-h-28 w-full resize-none rounded-md border border-slate-300 bg-slate-50 p-3 text-sm text-slate-900 outline-none focus:border-rose-400 focus:bg-white"
@@ -232,7 +232,7 @@ export function SupportMessagesPanel({ username }: SupportMessagesPanelProps) {
                 setMessage(event.target.value);
                 setSuccessMessage("");
               }}
-              placeholder="Write a kind note..."
+              placeholder="Write a supportive note..."
               value={message}
             />
             <div className="mt-1 text-right text-xs font-semibold text-slate-500">
@@ -258,7 +258,7 @@ export function SupportMessagesPanel({ username }: SupportMessagesPanelProps) {
 
             {!isLoading && !hasFriends ? (
               <p className="mt-4 rounded-md border border-dashed border-slate-300 bg-slate-50 p-3 text-sm font-semibold text-slate-600">
-                Add accepted friends before sending supportive messages.
+                Add accepted friends before sending support notes.
               </p>
             ) : null}
 
@@ -268,7 +268,7 @@ export function SupportMessagesPanel({ username }: SupportMessagesPanelProps) {
               onClick={() => void handleSendMessage()}
               type="button"
             >
-              {isSending ? "Sending..." : "Send support"}
+              {isSending ? "Sending..." : "Send note"}
             </button>
 
             {error ? (
@@ -287,15 +287,15 @@ export function SupportMessagesPanel({ username }: SupportMessagesPanelProps) {
 
         <div className="mt-8 grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
           <MessageList
-            emptyText="Supportive messages from friends will appear here."
+            emptyText="Support notes from friends will appear here."
             messages={latestMessages}
-            title="Support for you"
+            title="Notes for you"
             type="received"
           />
           <MessageList
             emptyText="Notes you send will be listed here."
             messages={latestSentMessages}
-            title="Recently sent"
+            title="Sent recently"
             type="sent"
           />
         </div>

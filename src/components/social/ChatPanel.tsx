@@ -1,6 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ClipboardEvent } from "react";
+import { EmojiPicker } from "@/components/chat/EmojiPicker";
+import {
+  ChatImageAttachmentInput,
+  copyChatImageAttachmentToClipboard,
+  createChatImageAttachmentFromFile,
+  getClipboardImageFile,
+} from "@/components/chat/ChatImageAttachmentInput";
+import { MessageActionsMenu } from "@/components/chat/MessageActionsMenu";
+import type { ChatImageAttachment } from "@/lib/chatImageAttachments";
 import {
   chatMessageLimit,
   type ChatMessage,
@@ -8,7 +17,6 @@ import {
   type ChatThread,
 } from "@/lib/chatTypes";
 import {
-  emojiShortcodeExamples,
   emojiShortcodeOptions,
   renderEmojiShortcodes,
   type EmojiShortcodeOption,
@@ -46,9 +54,14 @@ function formatChatDate(value: string) {
 function formatChatPreview(message: ChatMessage, username: string) {
   const renderedMessage = renderEmojiShortcodes(message.message);
   const messagePrefix = message.fromUsername === username ? "You: " : "";
+  const messageContent = message.imageAttachment
+    ? renderedMessage
+      ? `Photo · ${renderedMessage}`
+      : "Photo"
+    : renderedMessage;
   const editedSuffix = message.editedAt ? " (edited)" : "";
 
-  return `${messagePrefix}${renderedMessage}${editedSuffix}`;
+  return `${messagePrefix}${messageContent}${editedSuffix}`;
 }
 
 function findActiveEmojiShortcode(
@@ -94,9 +107,9 @@ async function readErrorMessage(response: Response) {
   try {
     const data: { error?: string } = await response.json();
 
-    return data.error || "Something went wrong.";
+    return data.error || "We could not complete this request.";
   } catch {
-    return "Something went wrong.";
+    return "We could not complete this request.";
   }
 }
 
@@ -105,35 +118,62 @@ export function ChatPanel({ username }: ChatPanelProps) {
   const [activeFriendUsername, setActiveFriendUsername] = useState("");
   const [thread, setThread] = useState<ChatThread | null>(null);
   const [message, setMessage] = useState("");
+  const [selectedImageAttachment, setSelectedImageAttachment] =
+    useState<ChatImageAttachment | null>(null);
   const [composerCursorPosition, setComposerCursorPosition] = useState(0);
   const [isLoadingOverview, setIsLoadingOverview] = useState(true);
   const [isLoadingThread, setIsLoadingThread] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingMessageText, setEditingMessageText] = useState("");
+  const [editingImageAttachment, setEditingImageAttachment] =
+    useState<ChatImageAttachment | null>(null);
   const [mutatingMessageId, setMutatingMessageId] = useState<string | null>(
     null,
   );
   const [error, setError] = useState("");
+  const [copiedImageMessageId, setCopiedImageMessageId] = useState<
+    string | null
+  >(null);
+  const [isChatExpanded, setIsChatExpanded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const editComposerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const copyImageResetTimeoutRef = useRef<number | null>(null);
+  const [editingCursorPosition, setEditingCursorPosition] = useState(0);
 
   const trimmedMessage = message.trim();
+  const trimmedEditingMessage = editingMessageText.trim();
   const renderedMessagePreview = renderEmojiShortcodes(message);
   const hasEmojiPreview = renderedMessagePreview !== message;
+  const editingMessage =
+    thread?.messages.find((chatMessage) => chatMessage.id === editingMessageId) ??
+    null;
   const activeEmojiShortcode = findActiveEmojiShortcode(
     message,
     composerCursorPosition,
   );
+  const activeEditEmojiShortcode = findActiveEmojiShortcode(
+    editingMessageText,
+    editingCursorPosition,
+  );
   const emojiSuggestions = activeEmojiShortcode
     ? getEmojiSuggestions(activeEmojiShortcode.query)
+    : [];
+  const editEmojiSuggestions = activeEditEmojiShortcode
+    ? getEmojiSuggestions(activeEditEmojiShortcode.query)
     : [];
   const hasFriends = overview.friends.length > 0;
   const canSend =
     Boolean(activeFriendUsername) &&
-    trimmedMessage.length > 0 &&
+    (trimmedMessage.length > 0 || Boolean(selectedImageAttachment)) &&
     trimmedMessage.length <= chatMessageLimit &&
     !isSending;
+  const canSaveEdit =
+    Boolean(editingMessageId) &&
+    (trimmedEditingMessage.length > 0 || Boolean(editingImageAttachment)) &&
+    trimmedEditingMessage.length <= chatMessageLimit &&
+    !mutatingMessageId;
 
   async function loadOverview() {
     const response = await fetch("/api/chat", {
@@ -249,6 +289,15 @@ export function ChatPanel({ username }: ChatPanelProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [thread?.messages.length]);
 
+  useEffect(
+    () => () => {
+      if (copyImageResetTimeoutRef.current) {
+        window.clearTimeout(copyImageResetTimeoutRef.current);
+      }
+    },
+    [],
+  );
+
   async function handleSendMessage() {
     if (!canSend) {
       return;
@@ -266,6 +315,7 @@ export function ChatPanel({ username }: ChatPanelProps) {
         body: JSON.stringify({
           toUsername: activeFriendUsername,
           message: trimmedMessage,
+          imageAttachment: selectedImageAttachment,
         }),
       });
 
@@ -274,6 +324,7 @@ export function ChatPanel({ username }: ChatPanelProps) {
       }
 
       setMessage("");
+      setSelectedImageAttachment(null);
       setComposerCursorPosition(0);
       await loadThread(activeFriendUsername);
       await loadOverview();
@@ -293,16 +344,42 @@ export function ChatPanel({ username }: ChatPanelProps) {
     setComposerCursorPosition(cursorPosition ?? value.length);
   }
 
+  async function handleComposerPaste(
+    event: ClipboardEvent<HTMLTextAreaElement>,
+  ) {
+    const imageFile = getClipboardImageFile(event.clipboardData);
+
+    if (!imageFile) {
+      return;
+    }
+
+    event.preventDefault();
+
+    try {
+      const attachment = await createChatImageAttachmentFromFile(imageFile);
+
+      setSelectedImageAttachment(attachment);
+      setError("");
+    } catch (pasteError) {
+      setError(
+        pasteError instanceof Error
+          ? pasteError.message
+          : "Image could not be attached.",
+      );
+    }
+  }
+
   function handleEmojiSelection(option: EmojiShortcodeOption) {
     const activeShortcode =
       activeEmojiShortcode ??
       findActiveEmojiShortcode(message, composerCursorPosition);
 
     if (!activeShortcode) {
-      const nextMessage = `${message}${message.endsWith(" ") || !message ? "" : " "}${
+      const nextMessage = `${message.slice(0, composerCursorPosition)}${
         option.emoji
-      } `;
-      const nextCursorPosition = nextMessage.length;
+      } ${message.slice(composerCursorPosition)}`;
+      const nextCursorPosition =
+        composerCursorPosition + option.emoji.length + 1;
 
       setMessage(nextMessage);
       setComposerCursorPosition(nextCursorPosition);
@@ -332,15 +409,85 @@ export function ChatPanel({ username }: ChatPanelProps) {
     });
   }
 
+  function handleEditComposerChange(
+    value: string,
+    cursorPosition: number | null,
+  ) {
+    setEditingMessageText(value);
+    setEditingCursorPosition(cursorPosition ?? value.length);
+  }
+
+  async function handleEditComposerPaste(
+    event: ClipboardEvent<HTMLTextAreaElement>,
+  ) {
+    const imageFile = getClipboardImageFile(event.clipboardData);
+
+    if (!imageFile) {
+      return;
+    }
+
+    event.preventDefault();
+
+    try {
+      const attachment = await createChatImageAttachmentFromFile(imageFile);
+
+      setEditingImageAttachment(attachment);
+      setError("");
+    } catch (pasteError) {
+      setError(
+        pasteError instanceof Error
+          ? pasteError.message
+          : "Image could not be attached.",
+      );
+    }
+  }
+
+  function handleEditEmojiSelection(option: EmojiShortcodeOption) {
+    const activeShortcode =
+      activeEditEmojiShortcode ??
+      findActiveEmojiShortcode(editingMessageText, editingCursorPosition);
+    const nextMessage = activeShortcode
+      ? `${editingMessageText.slice(0, activeShortcode.start)}${
+          option.emoji
+        } ${editingMessageText.slice(activeShortcode.end)}`
+      : `${editingMessageText.slice(0, editingCursorPosition)}${
+          option.emoji
+        } ${editingMessageText.slice(editingCursorPosition)}`;
+    const nextCursorPosition = activeShortcode
+      ? activeShortcode.start + option.emoji.length + 1
+      : editingCursorPosition + option.emoji.length + 1;
+
+    setEditingMessageText(nextMessage);
+    setEditingCursorPosition(nextCursorPosition);
+    window.requestAnimationFrame(() => {
+      editComposerTextareaRef.current?.focus();
+      editComposerTextareaRef.current?.setSelectionRange(
+        nextCursorPosition,
+        nextCursorPosition,
+      );
+    });
+  }
+
   function startEditingMessage(chatMessage: ChatMessage) {
     setEditingMessageId(chatMessage.id);
     setEditingMessageText(chatMessage.message);
+    setEditingImageAttachment(chatMessage.imageAttachment ?? null);
+    setEditingCursorPosition(chatMessage.message.length);
     setError("");
+    window.requestAnimationFrame(() => {
+      editComposerTextareaRef.current?.focus();
+      editComposerTextareaRef.current?.setSelectionRange(
+        chatMessage.message.length,
+        chatMessage.message.length,
+      );
+    });
   }
 
   function cancelEditingMessage() {
     setEditingMessageId(null);
     setEditingMessageText("");
+    setEditingImageAttachment(null);
+    setEditingCursorPosition(0);
   }
 
   async function refreshActiveConversation() {
@@ -355,7 +502,10 @@ export function ChatPanel({ username }: ChatPanelProps) {
   async function handleEditMessage(messageId: string) {
     const cleanMessage = editingMessageText.trim();
 
-    if (!cleanMessage || cleanMessage.length > chatMessageLimit) {
+    if (
+      (!cleanMessage && !editingImageAttachment) ||
+      cleanMessage.length > chatMessageLimit
+    ) {
       return;
     }
 
@@ -371,6 +521,7 @@ export function ChatPanel({ username }: ChatPanelProps) {
         body: JSON.stringify({
           id: messageId,
           message: cleanMessage,
+          imageAttachment: editingImageAttachment,
         }),
       });
 
@@ -430,32 +581,71 @@ export function ChatPanel({ username }: ChatPanelProps) {
     }
   }
 
+  async function handleCopyMessageImage(chatMessage: ChatMessage) {
+    if (!chatMessage.imageAttachment) {
+      return;
+    }
+
+    setError("");
+
+    try {
+      await copyChatImageAttachmentToClipboard(chatMessage.imageAttachment);
+      setCopiedImageMessageId(chatMessage.id);
+
+      if (copyImageResetTimeoutRef.current) {
+        window.clearTimeout(copyImageResetTimeoutRef.current);
+      }
+
+      copyImageResetTimeoutRef.current = window.setTimeout(() => {
+        setCopiedImageMessageId((currentMessageId) =>
+          currentMessageId === chatMessage.id ? null : currentMessageId,
+        );
+      }, 1600);
+    } catch (copyError) {
+      setError(
+        copyError instanceof Error
+          ? copyError.message
+          : "Image could not be copied.",
+      );
+    }
+  }
+
   return (
     <section
       aria-labelledby="chat-title"
-      className="mx-auto w-full max-w-6xl px-6 py-10"
+      className="mx-auto w-full max-w-[96rem] px-4 py-6 sm:px-6 lg:py-8"
     >
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-normal text-emerald-700">
-            Live chat
+            Direct messages
           </p>
           <h1
             className="mt-2 text-4xl font-bold leading-tight text-slate-950"
             id="chat-title"
           >
-            Message accepted friends.
+            Chat with accepted friends.
           </h1>
         </div>
         <span className="live-pill rounded-md bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800">
-          Auto-refreshing
+          Auto-refresh on
         </span>
       </div>
 
-      <div className="motion-panel grid h-[calc(100vh-15rem)] min-h-[34rem] grid-rows-[auto_1fr] overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm lg:grid-cols-[18rem_1fr] lg:grid-rows-1">
-        <aside className="min-h-0 border-b border-slate-200 bg-slate-50 lg:border-b-0 lg:border-r">
+      <div
+        className={`motion-panel grid overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm ${
+          isChatExpanded
+            ? "h-[calc(100vh-6rem)] min-h-[48rem] grid-rows-1"
+            : "h-[calc(100vh-9rem)] min-h-[42rem] grid-rows-[auto_1fr] lg:grid-cols-[16rem_minmax(0,1fr)] lg:grid-rows-1 xl:grid-cols-[17rem_minmax(0,1fr)]"
+        }`}
+      >
+        <aside
+          className={`min-h-0 border-b border-slate-200 bg-slate-50 lg:border-b-0 lg:border-r ${
+            isChatExpanded ? "hidden" : ""
+          }`}
+        >
           <div className="border-b border-slate-200 p-4">
-            <h2 className="text-lg font-bold text-slate-950">Chats</h2>
+            <h2 className="text-lg font-bold text-slate-950">Conversations</h2>
             <p className="mt-1 text-sm font-semibold text-slate-500">
               @{username}
             </p>
@@ -471,7 +661,7 @@ export function ChatPanel({ username }: ChatPanelProps) {
             {!isLoadingOverview && !hasFriends ? (
               <div className="p-4">
                 <p className="rounded-md border border-dashed border-slate-300 bg-white p-4 text-sm font-semibold leading-6 text-slate-600">
-                  Add accepted friends before starting a chat.
+                  Add accepted friends before starting a conversation.
                 </p>
               </div>
             ) : null}
@@ -493,6 +683,7 @@ export function ChatPanel({ username }: ChatPanelProps) {
                       onClick={() => {
                         setThread(null);
                         setActiveFriendUsername(conversation.friendUsername);
+                        setSelectedImageAttachment(null);
                         setError("");
                       }}
                       type="button"
@@ -510,7 +701,7 @@ export function ChatPanel({ username }: ChatPanelProps) {
                       <p className="mt-1 truncate text-sm font-semibold text-slate-500">
                         {lastMessage
                           ? formatChatPreview(lastMessage, username)
-                          : "Start a new conversation"}
+                          : "Start a conversation"}
                       </p>
                     </button>
                   );
@@ -520,26 +711,38 @@ export function ChatPanel({ username }: ChatPanelProps) {
         </aside>
 
         <div className="flex min-h-0 flex-col">
-          <div className="border-b border-slate-200 p-4">
-            {activeFriendUsername ? (
-              <>
-                <p className="text-lg font-bold text-slate-950">
-                  @{activeFriendUsername}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-500">
-                  Accepted friend
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-lg font-bold text-slate-950">
-                  No chat selected
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-500">
-                  Choose a friend to open a conversation.
-                </p>
-              </>
-            )}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4">
+            <div>
+              {activeFriendUsername ? (
+                <>
+                  <p className="text-lg font-bold text-slate-950">
+                    @{activeFriendUsername}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-500">
+                    Accepted friend
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-lg font-bold text-slate-950">
+                    No conversation selected
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-500">
+                    Choose a friend to open the conversation.
+                  </p>
+                </>
+              )}
+            </div>
+            <button
+              aria-pressed={isChatExpanded}
+              className="btn btn-secondary btn-sm"
+              onClick={() =>
+                setIsChatExpanded((currentIsExpanded) => !currentIsExpanded)
+              }
+              type="button"
+            >
+              {isChatExpanded ? "Minimize chat" : "Expand chat"}
+            </button>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-4">
@@ -554,7 +757,7 @@ export function ChatPanel({ username }: ChatPanelProps) {
             thread?.messages.length === 0 ? (
               <div className="mx-auto mt-16 max-w-sm rounded-md border border-dashed border-slate-300 bg-white p-5 text-center">
                 <p className="text-sm font-semibold leading-6 text-slate-600">
-                  No messages yet. Start with a quick hello or check-in.
+                  No messages yet. Start with a short greeting or check-in.
                 </p>
               </div>
             ) : null}
@@ -562,16 +765,14 @@ export function ChatPanel({ username }: ChatPanelProps) {
             <div className="grid gap-3">
               {thread?.messages.map((chatMessage) => (
                 <ChatBubble
-                  editingText={editingMessageText}
-                  isEditing={editingMessageId === chatMessage.id}
+                  isExpanded={isChatExpanded}
                   isMine={chatMessage.fromUsername === username}
+                  isImageCopied={copiedImageMessageId === chatMessage.id}
                   isMutating={mutatingMessageId === chatMessage.id}
                   key={chatMessage.id}
                   message={chatMessage}
-                  onCancelEdit={cancelEditingMessage}
+                  onCopyImage={() => void handleCopyMessageImage(chatMessage)}
                   onDelete={() => void handleDeleteMessage(chatMessage)}
-                  onEditTextChange={setEditingMessageText}
-                  onSaveEdit={() => void handleEditMessage(chatMessage.id)}
                   onStartEdit={() => startEditingMessage(chatMessage)}
                 />
               ))}
@@ -579,103 +780,257 @@ export function ChatPanel({ username }: ChatPanelProps) {
             </div>
           </div>
 
-          <div className="border-t border-slate-200 bg-white p-4">
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <textarea
-                className="min-h-12 flex-1 resize-none rounded-md border border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
-                disabled={!activeFriendUsername || isSending}
-                maxLength={chatMessageLimit}
-                onChange={(event) =>
-                  handleComposerChange(
-                    event.target.value,
-                    event.target.selectionStart,
-                  )
-                }
-                onClick={(event) =>
-                  setComposerCursorPosition(event.currentTarget.selectionStart)
-                }
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-
-                    if (emojiSuggestions.length > 0) {
-                      handleEmojiSelection(emojiSuggestions[0]);
-                      return;
-                    }
-
-                    void handleSendMessage();
-                  }
-                }}
-                onKeyUp={(event) =>
-                  setComposerCursorPosition(event.currentTarget.selectionStart)
-                }
-                onSelect={(event) =>
-                  setComposerCursorPosition(event.currentTarget.selectionStart)
-                }
-                placeholder="Message..."
-                ref={composerTextareaRef}
-                value={message}
-              />
-              <button
-                className="btn btn-primary"
-                disabled={!canSend}
-                onClick={() => void handleSendMessage()}
-                type="button"
-              >
-                {isSending ? "Sending..." : "Send"}
-              </button>
-            </div>
-
-            {emojiSuggestions.length > 0 ? (
-              <div className="emoji-suggestions mt-3 rounded-md border border-emerald-100 bg-emerald-50 p-3">
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs font-bold uppercase tracking-normal text-emerald-800">
-                    Emoji matches
-                  </p>
-                  {activeEmojiShortcode ? (
-                    <p className="text-xs font-semibold text-emerald-800">
-                      :{activeEmojiShortcode.query}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {emojiSuggestions.map((option) => (
+          <div className="border-t border-slate-200 bg-white p-3">
+            {editingMessage ? (
+              <>
+                <div className="mb-3 rounded-md border-l-4 border-emerald-500 bg-emerald-50 px-3 py-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-black uppercase tracking-normal text-emerald-800">
+                        Editing message
+                      </p>
+                      <p className="mt-1 truncate text-sm font-semibold text-slate-700">
+                        {editingMessage.message
+                          ? renderEmojiShortcodes(editingMessage.message)
+                          : "Photo"}
+                      </p>
+                    </div>
                     <button
-                      className="mood-chip bg-white"
-                      key={option.shortcode}
-                      onClick={() => handleEmojiSelection(option)}
+                      className="rounded-md px-2 py-1 text-xs font-black text-slate-500 transition hover:bg-white hover:text-slate-900"
+                      disabled={Boolean(mutatingMessageId)}
+                      onClick={cancelEditingMessage}
                       type="button"
                     >
-                      <span className="mr-2 text-base">{option.emoji}</span>
-                      {option.shortcode}
+                      Cancel
                     </button>
-                  ))}
+                  </div>
                 </div>
-              </div>
-            ) : null}
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <EmojiPicker
+                    disabled={Boolean(mutatingMessageId)}
+                    onSelect={handleEditEmojiSelection}
+                  />
+                  <textarea
+                    className="min-h-10 flex-1 resize-none rounded-md border border-emerald-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                    disabled={Boolean(mutatingMessageId)}
+                    maxLength={chatMessageLimit}
+                    onChange={(event) =>
+                      handleEditComposerChange(
+                        event.target.value,
+                        event.target.selectionStart,
+                      )
+                    }
+                    onClick={(event) =>
+                      setEditingCursorPosition(
+                        event.currentTarget.selectionStart,
+                      )
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
 
-            {hasEmojiPreview ? (
-              <div className="emoji-preview mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-bold uppercase tracking-normal text-slate-500">
-                  Preview
-                </p>
-                <p className="mt-1 whitespace-pre-wrap text-sm font-semibold text-slate-800">
-                  {renderedMessagePreview}
-                </p>
-              </div>
-            ) : null}
+                        if (editEmojiSuggestions.length > 0) {
+                          handleEditEmojiSelection(editEmojiSuggestions[0]);
+                          return;
+                        }
 
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-semibold text-slate-500">
-                Press Enter to send, Shift + Enter for a new line.
-              </p>
-              <p className="text-xs font-semibold text-slate-500">
-                {message.length}/{chatMessageLimit}
-              </p>
-            </div>
-            <p className="mt-2 text-xs font-semibold text-slate-500">
-              Emoji shortcodes work here: {emojiShortcodeExamples.join(", ")}.
-            </p>
+                        if (canSaveEdit && editingMessageId) {
+                          void handleEditMessage(editingMessageId);
+                        }
+                      }
+                    }}
+                    onKeyUp={(event) =>
+                      setEditingCursorPosition(
+                        event.currentTarget.selectionStart,
+                      )
+                    }
+                    onPaste={(event) => void handleEditComposerPaste(event)}
+                    onSelect={(event) =>
+                      setEditingCursorPosition(
+                        event.currentTarget.selectionStart,
+                      )
+                    }
+                    placeholder="Edit message..."
+                    ref={editComposerTextareaRef}
+                    value={editingMessageText}
+                  />
+                  <button
+                    className="btn btn-primary"
+                    disabled={!canSaveEdit || !editingMessageId}
+                    onClick={() =>
+                      editingMessageId
+                        ? void handleEditMessage(editingMessageId)
+                        : undefined
+                    }
+                    type="button"
+                  >
+                    {mutatingMessageId ? "Saving..." : "Save"}
+                  </button>
+                </div>
+
+                <ChatImageAttachmentInput
+                  attachment={editingImageAttachment}
+                  density="compact"
+                  disabled={Boolean(mutatingMessageId)}
+                  onAttachmentChange={setEditingImageAttachment}
+                  onError={setError}
+                  tone="emerald"
+                />
+
+                {editEmojiSuggestions.length > 0 ? (
+                  <div className="emoji-suggestions mt-3 rounded-md border border-emerald-100 bg-emerald-50 p-3">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-bold uppercase tracking-normal text-emerald-800">
+                        Emoji matches
+                      </p>
+                      {activeEditEmojiShortcode ? (
+                        <p className="text-xs font-semibold text-emerald-800">
+                          :{activeEditEmojiShortcode.query}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {editEmojiSuggestions.map((option) => (
+                        <button
+                          className="mood-chip bg-white"
+                          key={option.shortcode}
+                          onClick={() => handleEditEmojiSelection(option)}
+                          type="button"
+                        >
+                          <span className="mr-2 text-base">{option.emoji}</span>
+                          {option.shortcode}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-slate-500">
+                    Press Enter to save. Use Shift + Enter for a new line.
+                  </p>
+                  <p className="text-xs font-semibold text-slate-500">
+                    {editingMessageText.length}/{chatMessageLimit}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <EmojiPicker
+                    disabled={!activeFriendUsername || isSending}
+                    onSelect={handleEmojiSelection}
+                  />
+                  <textarea
+                    className="min-h-10 flex-1 resize-none rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                    disabled={!activeFriendUsername || isSending}
+                    maxLength={chatMessageLimit}
+                    onChange={(event) =>
+                      handleComposerChange(
+                        event.target.value,
+                        event.target.selectionStart,
+                      )
+                    }
+                    onClick={(event) =>
+                      setComposerCursorPosition(
+                        event.currentTarget.selectionStart,
+                      )
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+
+                        if (emojiSuggestions.length > 0) {
+                          handleEmojiSelection(emojiSuggestions[0]);
+                          return;
+                        }
+
+                        void handleSendMessage();
+                      }
+                    }}
+                    onKeyUp={(event) =>
+                      setComposerCursorPosition(
+                        event.currentTarget.selectionStart,
+                      )
+                    }
+                    onPaste={(event) => void handleComposerPaste(event)}
+                    onSelect={(event) =>
+                      setComposerCursorPosition(
+                        event.currentTarget.selectionStart,
+                      )
+                    }
+                    placeholder="Write a message..."
+                    ref={composerTextareaRef}
+                    value={message}
+                  />
+                  <button
+                    className="btn btn-primary"
+                    disabled={!canSend}
+                    onClick={() => void handleSendMessage()}
+                    type="button"
+                  >
+                    {isSending ? "Sending..." : "Send"}
+                  </button>
+                </div>
+
+                <ChatImageAttachmentInput
+                  attachment={selectedImageAttachment}
+                  density="compact"
+                  disabled={!activeFriendUsername || isSending}
+                  onAttachmentChange={setSelectedImageAttachment}
+                  onError={setError}
+                  tone="emerald"
+                />
+
+                {emojiSuggestions.length > 0 ? (
+                  <div className="emoji-suggestions mt-3 rounded-md border border-emerald-100 bg-emerald-50 p-3">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-bold uppercase tracking-normal text-emerald-800">
+                        Emoji matches
+                      </p>
+                      {activeEmojiShortcode ? (
+                        <p className="text-xs font-semibold text-emerald-800">
+                          :{activeEmojiShortcode.query}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {emojiSuggestions.map((option) => (
+                        <button
+                          className="mood-chip bg-white"
+                          key={option.shortcode}
+                          onClick={() => handleEmojiSelection(option)}
+                          type="button"
+                        >
+                          <span className="mr-2 text-base">{option.emoji}</span>
+                          {option.shortcode}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {hasEmojiPreview ? (
+                  <div className="emoji-preview mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-bold uppercase tracking-normal text-slate-500">
+                      Preview
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm font-semibold text-slate-800">
+                      {renderedMessagePreview}
+                    </p>
+                  </div>
+                ) : null}
+
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-slate-500">
+                    Press Enter to send. Use Shift + Enter for a new line.
+                  </p>
+                  <p className="text-xs font-semibold text-slate-500">
+                    {message.length}/{chatMessageLimit}
+                  </p>
+                </div>
+              </>
+            )}
 
             {error ? (
               <p className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-900">
@@ -690,108 +1045,92 @@ export function ChatPanel({ username }: ChatPanelProps) {
 }
 
 function ChatBubble({
-  editingText,
-  isEditing,
+  isExpanded,
   isMine,
+  isImageCopied,
   isMutating,
   message,
-  onCancelEdit,
+  onCopyImage,
   onDelete,
-  onEditTextChange,
-  onSaveEdit,
   onStartEdit,
 }: {
-  editingText: string;
-  isEditing: boolean;
+  isExpanded: boolean;
   isMine: boolean;
+  isImageCopied: boolean;
   isMutating: boolean;
   message: ChatMessage;
-  onCancelEdit: () => void;
+  onCopyImage: () => void;
   onDelete: () => void;
-  onEditTextChange: (value: string) => void;
-  onSaveEdit: () => void;
   onStartEdit: () => void;
 }) {
-  const canSaveEdit =
-    editingText.trim().length > 0 &&
-    editingText.trim().length <= chatMessageLimit &&
-    !isMutating;
+  const bubbleWidthClass = isExpanded
+    ? "max-w-[92%] sm:max-w-[34rem] lg:max-w-[44rem]"
+    : "max-w-[82%]";
+  const hasActions = Boolean(message.imageAttachment) || isMine;
 
   return (
     <div
-      className={`chat-bubble flex ${
+      className={`chat-bubble relative focus-within:z-10 flex ${
         isMine ? "chat-bubble-mine justify-end" : "justify-start"
       }`}
     >
       <div
-        className={`max-w-[82%] rounded-md px-4 py-3 shadow-sm ${
+        className={`${bubbleWidthClass} rounded-md px-4 py-3 shadow-sm ${
           isMine
             ? "bg-emerald-700 text-white"
             : "border border-slate-200 bg-white text-slate-900"
         }`}
       >
-        {isEditing ? (
-          <div className="grid gap-3">
-            <textarea
-              className="min-h-24 w-full resize-none rounded-md border border-emerald-200 bg-white p-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              maxLength={chatMessageLimit}
-              onChange={(event) => onEditTextChange(event.target.value)}
-              value={editingText}
+        {message.imageAttachment ? (
+          <a
+            aria-label={`Open ${message.imageAttachment.name}`}
+            className="mb-3 block outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            href={message.imageAttachment.dataUrl}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <img
+              alt={message.imageAttachment.name}
+              className={`block max-w-full rounded-md border ${
+                isExpanded ? "max-h-64" : "max-h-48"
+              } ${isMine ? "border-white/20" : "border-slate-200"}`}
+              src={message.imageAttachment.dataUrl}
             />
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <button
-                className="btn btn-secondary btn-sm"
-                disabled={isMutating}
-                onClick={onCancelEdit}
-                type="button"
-              >
-                Cancel
-              </button>
-              <button
-                className="btn btn-primary btn-sm"
-                disabled={!canSaveEdit}
-                onClick={onSaveEdit}
-                type="button"
-              >
-                {isMutating ? "Saving..." : "Save"}
-              </button>
-            </div>
+          </a>
+        ) : null}
+        {message.message ? (
+          <p className="whitespace-pre-wrap leading-6">
+            {renderEmojiShortcodes(message.message)}
+          </p>
+        ) : null}
+        <div
+          className={`mt-2 flex flex-wrap items-center justify-end gap-2 text-xs font-semibold ${
+            isMine ? "text-emerald-50" : "text-slate-500"
+          }`}
+        >
+          <span>{formatChatTime(message.createdAt)}</span>
+          {message.editedAt ? <span>Edited</span> : null}
+        </div>
+        {hasActions ? (
+          <div
+            className={`mt-3 flex flex-wrap gap-2 ${
+              isMine ? "justify-end" : "justify-start"
+            }`}
+          >
+            <MessageActionsMenu
+              align={isMine ? "right" : "left"}
+              canCopyImage={Boolean(message.imageAttachment)}
+              canDelete={isMine}
+              canEdit={isMine}
+              disabled={isMutating}
+              isImageCopied={isImageCopied}
+              onCopyImage={onCopyImage}
+              onDelete={onDelete}
+              onEdit={onStartEdit}
+              surface={isMine ? "mine" : "default"}
+            />
           </div>
-        ) : (
-          <>
-            <p className="whitespace-pre-wrap leading-6">
-              {renderEmojiShortcodes(message.message)}
-            </p>
-            <div
-              className={`mt-2 flex flex-wrap items-center justify-end gap-2 text-xs font-semibold ${
-                isMine ? "text-emerald-50" : "text-slate-500"
-              }`}
-            >
-              <span>{formatChatTime(message.createdAt)}</span>
-              {message.editedAt ? <span>Edited</span> : null}
-            </div>
-            {isMine ? (
-              <div className="mt-3 flex flex-wrap justify-end gap-2">
-                <button
-                  className="rounded-md bg-white/10 px-2 py-1 text-xs font-bold text-white transition hover:bg-white/20"
-                  disabled={isMutating}
-                  onClick={onStartEdit}
-                  type="button"
-                >
-                  Edit
-                </button>
-                <button
-                  className="rounded-md bg-white/10 px-2 py-1 text-xs font-bold text-white transition hover:bg-white/20"
-                  disabled={isMutating}
-                  onClick={onDelete}
-                  type="button"
-                >
-                  {isMutating ? "Deleting..." : "Delete"}
-                </button>
-              </div>
-            ) : null}
-          </>
-        )}
+        ) : null}
       </div>
     </div>
   );

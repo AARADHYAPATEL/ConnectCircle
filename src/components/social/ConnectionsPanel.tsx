@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type {
@@ -41,13 +42,17 @@ function getFriendUsername(friendship: Friendship, username: string) {
   );
 }
 
+function getProfileHref(username: string) {
+  return `/people/${encodeURIComponent(username)}`;
+}
+
 async function readErrorMessage(response: Response) {
   try {
     const data: { error?: string } = await response.json();
 
-    return data.error || "Something went wrong.";
+    return data.error || "We could not complete this request.";
   } catch {
-    return "Something went wrong.";
+    return "We could not complete this request.";
   }
 }
 
@@ -60,6 +65,7 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
     null,
   );
   const [managingUsername, setManagingUsername] = useState<string | null>(null);
+  const [openFriendMenuId, setOpenFriendMenuId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -129,6 +135,36 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
       isActive = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!openFriendMenuId) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+
+      if (target instanceof Element && target.closest("[data-friend-menu]")) {
+        return;
+      }
+
+      setOpenFriendMenuId(null);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpenFriendMenuId(null);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openFriendMenuId]);
 
   async function handleSendRequest() {
     if (!canSendRequest) {
@@ -266,17 +302,17 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
       <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
         <div>
           <p className="text-sm font-semibold uppercase tracking-normal text-teal-700">
-            Social circle
+            Connections
           </p>
           <h1
             className="mt-2 text-4xl font-bold leading-tight text-slate-950"
             id="connections-title"
           >
-            Build your circle with username requests.
+            Manage friend requests and accepted connections.
           </h1>
           <p className="mt-4 leading-7 text-slate-700">
-            Search by username, send a request, and wait for the other student
-            to accept before they become part of your ConnectCircle friends.
+            Send requests by username, review invitations, and keep your
+            ConnectCircle friends list intentional.
           </p>
         </div>
 
@@ -285,7 +321,7 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
             className="block text-sm font-semibold text-slate-800"
             htmlFor="connection-username"
           >
-            Friend username
+            Username
           </label>
           <div className="mt-3 flex flex-col gap-3 sm:flex-row">
             <input
@@ -314,7 +350,7 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
             </button>
           </div>
           <p className="mt-3 text-sm font-semibold text-slate-500">
-            Your username is @{username}.
+            Signed in as @{username}.
           </p>
 
           {error ? (
@@ -343,16 +379,19 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
         <div className="mt-8 grid gap-5 lg:grid-cols-2 xl:grid-cols-4">
           <ConnectionList title="Incoming requests">
             {summary.incomingRequests.length === 0 ? (
-              <EmptyState text="New requests from other users will appear here." />
+              <EmptyState text="New invitations from other users will appear here." />
             ) : (
               summary.incomingRequests.map((request) => (
                 <article
                   className="rounded-md border border-slate-200 bg-white p-4 shadow-sm"
                   key={request.id}
                 >
-                  <p className="text-lg font-bold text-slate-950">
+                  <Link
+                    className="inline-block max-w-full truncate text-lg font-bold text-slate-950 transition hover:text-teal-700 focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200"
+                    href={getProfileHref(request.fromUsername)}
+                  >
                     @{request.fromUsername}
-                  </p>
+                  </Link>
                   <p className="mt-1 text-sm font-semibold text-slate-500">
                     Sent {formatDate(request.createdAt)}
                   </p>
@@ -379,18 +418,21 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
             )}
           </ConnectionList>
 
-          <ConnectionList title="Sent requests">
+          <ConnectionList title="Sent invitations">
             {summary.outgoingRequests.length === 0 ? (
-              <EmptyState text="Requests you send will stay here until accepted." />
+              <EmptyState text="Invitations you send will stay here until accepted." />
             ) : (
               summary.outgoingRequests.map((request) => (
                 <article
                   className="rounded-md border border-slate-200 bg-white p-4 shadow-sm"
                   key={request.id}
                 >
-                  <p className="text-lg font-bold text-slate-950">
+                  <Link
+                    className="inline-block max-w-full truncate text-lg font-bold text-slate-950 transition hover:text-teal-700 focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200"
+                    href={getProfileHref(request.toUsername)}
+                  >
                     @{request.toUsername}
-                  </p>
+                  </Link>
                   <p className="mt-1 text-sm font-semibold text-slate-500">
                     Waiting since {formatDate(request.createdAt)}
                   </p>
@@ -408,39 +450,88 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
             ) : (
               sortedFriends.map((friendship) => {
                 const friendUsername = getFriendUsername(friendship, username);
+                const isFriendMenuOpen = openFriendMenuId === friendship.id;
 
                 return (
                   <article
-                    className="rounded-md border border-teal-200 bg-teal-50 p-4 shadow-sm"
+                    className={`relative overflow-visible rounded-md border border-teal-200 bg-teal-50 p-4 shadow-sm ${
+                      isFriendMenuOpen
+                        ? "z-50"
+                        : "z-0 focus-within:z-30 hover:z-30"
+                    }`}
                     key={friendship.id}
                   >
-                    <p className="text-lg font-bold text-slate-950">
-                      @{friendUsername}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-teal-800">
-                      Connected {formatDate(friendship.createdAt)}
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        disabled={managingUsername === `remove:${friendUsername}`}
-                        onClick={() =>
-                          void handleFriendAction(friendUsername, "remove")
-                        }
-                        type="button"
-                      >
-                        Remove
-                      </button>
-                      <button
-                        className="btn btn-danger btn-sm"
-                        disabled={managingUsername === `block:${friendUsername}`}
-                        onClick={() =>
-                          void handleFriendAction(friendUsername, "block")
-                        }
-                        type="button"
-                      >
-                        Block
-                      </button>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <Link
+                          className="block truncate text-lg font-bold text-slate-950 transition hover:text-teal-700 focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200"
+                          href={getProfileHref(friendUsername)}
+                        >
+                          @{friendUsername}
+                        </Link>
+                        <p className="mt-1 text-sm font-semibold text-teal-800">
+                          Connected {formatDate(friendship.createdAt)}
+                        </p>
+                      </div>
+                      <div className="relative shrink-0" data-friend-menu>
+                        <button
+                          aria-expanded={isFriendMenuOpen}
+                          aria-haspopup="menu"
+                          aria-label={`More actions for ${friendUsername}`}
+                          className="grid h-9 w-9 cursor-pointer list-none place-items-center rounded-md border border-teal-200 bg-white/70 text-xl font-black leading-none text-slate-500 transition hover:border-teal-400 hover:text-slate-950 dark:border-teal-500/35 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:text-white"
+                          onClick={() =>
+                            setOpenFriendMenuId((currentMenuId) =>
+                              currentMenuId === friendship.id
+                                ? null
+                                : friendship.id,
+                            )
+                          }
+                          type="button"
+                        >
+                          ...
+                        </button>
+                        {isFriendMenuOpen ? (
+                          <div
+                            className="absolute right-0 z-50 mt-2 grid min-w-36 gap-1 rounded-md border border-slate-200 bg-white p-2 shadow-xl shadow-slate-950/10 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/30"
+                            role="menu"
+                          >
+                            <button
+                              className="rounded-md border border-transparent px-3 py-2 text-left text-sm font-bold text-slate-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-950 focus-visible:border-teal-300 focus-visible:bg-teal-50 focus-visible:text-teal-950 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-300 active:bg-teal-100 dark:text-slate-200 dark:hover:border-teal-400 dark:hover:bg-teal-950/50 dark:hover:text-teal-50 dark:focus-visible:border-teal-400 dark:focus-visible:bg-teal-950/50 dark:focus-visible:text-teal-50 dark:focus-visible:outline-teal-400"
+                              disabled={
+                                managingUsername === `remove:${friendUsername}`
+                              }
+                              onClick={() => {
+                                setOpenFriendMenuId(null);
+                                void handleFriendAction(
+                                  friendUsername,
+                                  "remove",
+                                );
+                              }}
+                              role="menuitem"
+                              type="button"
+                            >
+                              Remove
+                            </button>
+                            <button
+                              className="rounded-md px-3 py-2 text-left text-sm font-bold text-rose-700 transition hover:bg-rose-50 hover:text-rose-900 dark:text-rose-200 dark:hover:bg-rose-950/40 dark:hover:text-rose-100"
+                              disabled={
+                                managingUsername === `block:${friendUsername}`
+                              }
+                              onClick={() => {
+                                setOpenFriendMenuId(null);
+                                void handleFriendAction(
+                                  friendUsername,
+                                  "block",
+                                );
+                              }}
+                              role="menuitem"
+                              type="button"
+                            >
+                              Block
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
                   </article>
                 );
@@ -450,7 +541,7 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
 
           <ConnectionList title="Blocked users">
             {summary.blockedUsers.length === 0 ? (
-              <EmptyState text="Users you block will appear here so you can unblock them later." />
+              <EmptyState text="Blocked users will appear here so you can unblock them later." />
             ) : (
               summary.blockedUsers.map((block) => (
                 <BlockedUserCard
@@ -479,14 +570,14 @@ function ConnectionEmptyGuide() {
         First connection
       </p>
       <h2 className="mt-2 text-2xl font-bold text-slate-950">
-        Start with one trusted person.
+        Start with one trusted connection.
       </h2>
       <p className="mt-3 max-w-2xl leading-7 text-slate-700">
-        Send a request by username. When they accept, they become available for
-        friend chat, circles, and shared wellness support.
+        Send a username request. Once it is accepted, that person becomes
+        available for chat, circles, and shared support.
       </p>
       <a className="btn btn-primary mt-5" href="#connection-username">
-        Enter a username
+        Enter username
       </a>
     </section>
   );
@@ -503,9 +594,12 @@ function BlockedUserCard({
 }) {
   return (
     <article className="rounded-md border border-rose-200 bg-rose-50 p-4 shadow-sm">
-      <p className="text-lg font-bold text-slate-950">
+      <Link
+        className="inline-block max-w-full truncate text-lg font-bold text-slate-950 transition hover:text-rose-800 focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200"
+        href={getProfileHref(block.blockedUsername)}
+      >
         @{block.blockedUsername}
-      </p>
+      </Link>
       <p className="mt-1 text-sm font-semibold text-rose-800">
         Blocked {formatDate(block.createdAt)}
       </p>

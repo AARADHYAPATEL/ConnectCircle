@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type {
   BlockedConnection,
+  ConnectionRelationshipSummary,
   ConnectionRequest,
   ConnectionSummary,
   Friendship,
@@ -211,6 +212,51 @@ export async function getFriendUsernames(username: string) {
     )
     .map((friendship) => getOtherFriendUsername(friendship, username))
     .sort((first, second) => first.localeCompare(second));
+}
+
+export async function getConnectionRelationship(
+  viewerUsername: string,
+  profileUsername: string,
+): Promise<ConnectionRelationshipSummary> {
+  const data = await readConnectionData();
+  const friendship =
+    data.friendships.find((currentFriendship) =>
+      hasFriendship(currentFriendship, viewerUsername, profileUsername),
+    ) ?? null;
+
+  if (isBlockedBetween(data.blocks, viewerUsername, profileUsername)) {
+    return {
+      friendship: null,
+      relationship: "blocked",
+    };
+  }
+
+  if (friendship) {
+    return {
+      friendship,
+      relationship: "connected",
+    };
+  }
+
+  const pendingRequest = data.requests.find(
+    (request) =>
+      request.status === "pending" &&
+      isBetweenUsers(request, viewerUsername, profileUsername),
+  );
+
+  if (pendingRequest) {
+    return {
+      friendship: null,
+      relationship: areSameUser(pendingRequest.fromUsername, viewerUsername)
+        ? "outgoing_request"
+        : "incoming_request",
+    };
+  }
+
+  return {
+    friendship: null,
+    relationship: "none",
+  };
 }
 
 export async function sendConnectionRequest(

@@ -29,11 +29,11 @@ export default async function EditMoodEntryPage({
             Edit entry
           </p>
           <h1 className="mt-2 text-4xl font-bold leading-tight text-slate-950">
-            Adjust what you saved.
+            Refine a saved check-in.
           </h1>
           <p className="mt-4 leading-7 text-slate-700">
-            Update the wording, intensity, support signal, or context for a
-            saved mood entry.
+            Update the wording, intensity, support preference, or context for
+            this entry.
           </p>
         </div>
 

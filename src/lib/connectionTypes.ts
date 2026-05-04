@@ -1,4 +1,10 @@
 export type ConnectionRequestStatus = "pending" | "accepted" | "declined";
+export type ConnectionRelationship =
+  | "blocked"
+  | "connected"
+  | "incoming_request"
+  | "none"
+  | "outgoing_request";
 
 export type ConnectionRequest = {
   id: string;
@@ -28,4 +34,9 @@ export type ConnectionSummary = {
   outgoingRequests: ConnectionRequest[];
   friends: Friendship[];
   blockedUsers: BlockedConnection[];
+};
+
+export type ConnectionRelationshipSummary = {
+  friendship: Friendship | null;
+  relationship: ConnectionRelationship;
 };

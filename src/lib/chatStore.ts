@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { getFriendUsernames } from "@/lib/connectionStore";
+import type { ChatImageAttachment } from "@/lib/chatImageAttachments";
 import {
   chatMessageLimit,
   isChatMessage,
@@ -169,8 +170,10 @@ export async function sendChatMessage(
   fromUsername: string,
   toUsername: string,
   message: string,
+  imageAttachment: ChatImageAttachment | null = null,
 ): Promise<SendChatMessageResult> {
   const cleanMessage = message.trim();
+  const cleanImageAttachment = imageAttachment ?? null;
 
   if (areSameUser(fromUsername, toUsername)) {
     return {
@@ -179,9 +182,9 @@ export async function sendChatMessage(
     };
   }
 
-  if (!cleanMessage) {
+  if (!cleanMessage && !cleanImageAttachment) {
     return {
-      error: "Message is required.",
+      error: "Add a message or image before sending.",
       message: null,
     };
   }
@@ -208,6 +211,9 @@ export async function sendChatMessage(
     fromUsername,
     toUsername: acceptedFriendUsername,
     message: cleanMessage,
+    ...(cleanImageAttachment
+      ? { imageAttachment: cleanImageAttachment }
+      : {}),
     createdAt: new Date().toISOString(),
   };
   const messages = await readChatMessages();
@@ -224,15 +230,9 @@ export async function editChatMessage(
   username: string,
   messageId: string,
   message: string,
+  imageAttachment: ChatImageAttachment | null | undefined = undefined,
 ): Promise<ChatMessageMutationResult> {
   const cleanMessage = message.trim();
-
-  if (!cleanMessage) {
-    return {
-      error: "Message is required.",
-      message: null,
-    };
-  }
 
   if (cleanMessage.length > chatMessageLimit) {
     return {
@@ -253,6 +253,18 @@ export async function editChatMessage(
     };
   }
 
+  const nextImageAttachment =
+    imageAttachment === undefined
+      ? existingMessage.imageAttachment ?? null
+      : imageAttachment;
+
+  if (!cleanMessage && !nextImageAttachment) {
+    return {
+      error: "Message is required.",
+      message: null,
+    };
+  }
+
   if (!areSameUser(existingMessage.fromUsername, username)) {
     return {
       error: "You can only edit your own messages.",
@@ -261,8 +273,12 @@ export async function editChatMessage(
   }
 
   const updatedMessage: ChatMessage = {
-    ...existingMessage,
+    id: existingMessage.id,
+    fromUsername: existingMessage.fromUsername,
+    toUsername: existingMessage.toUsername,
     message: cleanMessage,
+    ...(nextImageAttachment ? { imageAttachment: nextImageAttachment } : {}),
+    createdAt: existingMessage.createdAt,
     editedAt: new Date().toISOString(),
   };
 

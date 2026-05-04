@@ -20,11 +20,11 @@ export default async function MoodCheckInPage() {
             Mood check-in
           </p>
           <h1 className="mt-2 text-4xl font-bold leading-tight text-slate-950">
-            Put today into your own words.
+            Describe today in your own words.
           </h1>
           <p className="mt-4 leading-7 text-slate-700">
-            This space is for a quick, honest check-in that saves to your
-            personal mood entries.
+            Save a focused check-in for your private record, with optional
+            details when you want more context.
           </p>
         </div>
 
