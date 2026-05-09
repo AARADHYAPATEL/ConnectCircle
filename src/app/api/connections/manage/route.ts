@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   blockFriend,
+  removeBlockedUser,
   removeFriend,
   unblockUser,
 } from "@/lib/connectionStore";
@@ -36,7 +37,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Username is required." }, { status: 400 });
   }
 
-  if (action !== "remove" && action !== "block" && action !== "unblock") {
+  if (
+    action !== "remove" &&
+    action !== "block" &&
+    action !== "unblock" &&
+    action !== "remove_block"
+  ) {
     return NextResponse.json({ error: "Connection action is invalid." }, { status: 400 });
   }
 
@@ -45,7 +51,9 @@ export async function POST(request: Request) {
       ? await removeFriend(user.username, targetUsername)
       : action === "block"
         ? await blockFriend(user.username, targetUsername)
-        : await unblockUser(user.username, targetUsername);
+        : action === "remove_block"
+          ? await removeBlockedUser(user.username, targetUsername)
+          : await unblockUser(user.username, targetUsername);
 
   if (result.error) {
     return NextResponse.json({ error: result.error }, { status: 400 });

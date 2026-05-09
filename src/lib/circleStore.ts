@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import type { ChatImageAttachment } from "@/lib/chatImageAttachments";
+import type { ChatMediaAttachment } from "@/lib/chatImageAttachments";
 import { getFriendUsernames } from "@/lib/connectionStore";
 import {
   circleDescriptionLimit,
@@ -701,18 +701,64 @@ export async function getCircleChatThread(
   };
 }
 
+export async function getCircleMessageForReport(
+  username: string,
+  messageId: string,
+): Promise<CircleMessageMutationResult & { circle: Circle | null }> {
+  const data = await readCircleData();
+  const existingMessage = data.messages.find(
+    (currentMessage) => currentMessage.id === messageId,
+  );
+
+  if (!existingMessage) {
+    return {
+      circle: null,
+      error: "Message could not be found.",
+      message: null,
+    };
+  }
+
+  const circle = data.circles.find(
+    (currentCircle) =>
+      currentCircle.id === existingMessage.circleId &&
+      isMember(currentCircle, username),
+  );
+
+  if (!circle) {
+    return {
+      circle: null,
+      error: "You can only report messages from your own circles.",
+      message: null,
+    };
+  }
+
+  if (areSameUser(existingMessage.fromUsername, username)) {
+    return {
+      circle,
+      error: "You cannot report your own message.",
+      message: null,
+    };
+  }
+
+  return {
+    circle,
+    error: "",
+    message: existingMessage,
+  };
+}
+
 export async function sendCircleMessage(
   fromUsername: string,
   circleId: string,
   message: string,
-  imageAttachment: ChatImageAttachment | null = null,
+  imageAttachment: ChatMediaAttachment | null = null,
 ): Promise<SendCircleMessageResult> {
   const cleanMessage = message.trim();
   const cleanImageAttachment = imageAttachment ?? null;
 
   if (!cleanMessage && !cleanImageAttachment) {
     return {
-      error: "Add a message or image before sending.",
+      error: "Add a message, image, or video before sending.",
       message: null,
     };
   }
@@ -763,7 +809,7 @@ export async function editCircleMessage(
   username: string,
   messageId: string,
   message: string,
-  imageAttachment: ChatImageAttachment | null | undefined = undefined,
+  imageAttachment: ChatMediaAttachment | null | undefined = undefined,
 ): Promise<CircleMessageMutationResult> {
   const cleanMessage = message.trim();
 
@@ -793,7 +839,7 @@ export async function editCircleMessage(
 
   if (!cleanMessage && !nextImageAttachment) {
     return {
-      error: "Message is required.",
+      error: "Add a message, image, or video before saving.",
       message: null,
     };
   }

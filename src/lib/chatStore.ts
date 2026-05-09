@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { getFriendUsernames } from "@/lib/connectionStore";
-import type { ChatImageAttachment } from "@/lib/chatImageAttachments";
+import type { ChatMediaAttachment } from "@/lib/chatImageAttachments";
 import {
   chatMessageLimit,
   isChatMessage,
@@ -166,11 +166,50 @@ export async function getChatThread(
   };
 }
 
+export async function getChatMessageForReport(
+  username: string,
+  messageId: string,
+): Promise<ChatMessageMutationResult> {
+  const messages = await readChatMessages();
+  const existingMessage = messages.find(
+    (currentMessage) => currentMessage.id === messageId,
+  );
+
+  if (!existingMessage) {
+    return {
+      error: "Message could not be found.",
+      message: null,
+    };
+  }
+
+  if (
+    !areSameUser(existingMessage.fromUsername, username) &&
+    !areSameUser(existingMessage.toUsername, username)
+  ) {
+    return {
+      error: "You can only report messages from your own conversations.",
+      message: null,
+    };
+  }
+
+  if (areSameUser(existingMessage.fromUsername, username)) {
+    return {
+      error: "You cannot report your own message.",
+      message: null,
+    };
+  }
+
+  return {
+    error: "",
+    message: existingMessage,
+  };
+}
+
 export async function sendChatMessage(
   fromUsername: string,
   toUsername: string,
   message: string,
-  imageAttachment: ChatImageAttachment | null = null,
+  imageAttachment: ChatMediaAttachment | null = null,
 ): Promise<SendChatMessageResult> {
   const cleanMessage = message.trim();
   const cleanImageAttachment = imageAttachment ?? null;
@@ -184,7 +223,7 @@ export async function sendChatMessage(
 
   if (!cleanMessage && !cleanImageAttachment) {
     return {
-      error: "Add a message or image before sending.",
+      error: "Add a message, image, or video before sending.",
       message: null,
     };
   }
@@ -230,7 +269,7 @@ export async function editChatMessage(
   username: string,
   messageId: string,
   message: string,
-  imageAttachment: ChatImageAttachment | null | undefined = undefined,
+  imageAttachment: ChatMediaAttachment | null | undefined = undefined,
 ): Promise<ChatMessageMutationResult> {
   const cleanMessage = message.trim();
 
@@ -260,7 +299,7 @@ export async function editChatMessage(
 
   if (!cleanMessage && !nextImageAttachment) {
     return {
-      error: "Message is required.",
+      error: "Add a message, image, or video before saving.",
       message: null,
     };
   }

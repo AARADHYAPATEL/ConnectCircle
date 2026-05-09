@@ -15,7 +15,7 @@ type ConnectionsPanelProps = {
 };
 
 type RequestAction = "accept" | "decline";
-type FriendAction = "remove" | "block" | "unblock";
+type FriendAction = "remove" | "block" | "unblock" | "remove_block";
 
 const emptySummary: ConnectionSummary = {
   incomingRequests: [],
@@ -46,6 +46,10 @@ function getProfileHref(username: string) {
   return `/people/${encodeURIComponent(username)}`;
 }
 
+function getReportHref(username: string) {
+  return `/people/${encodeURIComponent(username)}/report`;
+}
+
 async function readErrorMessage(response: Response) {
   try {
     const data: { error?: string } = await response.json();
@@ -66,6 +70,9 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
   );
   const [managingUsername, setManagingUsername] = useState<string | null>(null);
   const [openFriendMenuId, setOpenFriendMenuId] = useState<string | null>(null);
+  const [openBlockedMenuId, setOpenBlockedMenuId] = useState<string | null>(
+    null,
+  );
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -137,23 +144,28 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
   }, []);
 
   useEffect(() => {
-    if (!openFriendMenuId) {
+    if (!openFriendMenuId && !openBlockedMenuId) {
       return;
     }
 
     function handlePointerDown(event: PointerEvent) {
       const target = event.target;
 
-      if (target instanceof Element && target.closest("[data-friend-menu]")) {
+      if (
+        target instanceof Element &&
+        target.closest("[data-connection-menu]")
+      ) {
         return;
       }
 
       setOpenFriendMenuId(null);
+      setOpenBlockedMenuId(null);
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setOpenFriendMenuId(null);
+        setOpenBlockedMenuId(null);
       }
     }
 
@@ -164,7 +176,7 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [openFriendMenuId]);
+  }, [openBlockedMenuId, openFriendMenuId]);
 
   async function handleSendRequest() {
     if (!canSendRequest) {
@@ -249,7 +261,9 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
         ? "remove this friend"
         : action === "block"
           ? "block this friend"
-          : "unblock this user";
+          : action === "remove_block"
+            ? "remove this user from the visible blocked list"
+            : "unblock this user";
     const shouldContinue =
       action === "unblock" ||
       window.confirm(`Are you sure you want to ${actionLabel}?`);
@@ -280,7 +294,9 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
           ? `Removed @${targetUsername} from your friends.`
           : action === "block"
             ? `Blocked @${targetUsername}.`
-            : `Unblocked @${targetUsername}.`,
+            : action === "remove_block"
+              ? `Removed @${targetUsername} from your blocked users list. They are still blocked.`
+              : `Unblocked @${targetUsername}.`,
       );
       await loadConnections();
     } catch (actionError) {
@@ -473,19 +489,20 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
                           Connected {formatDate(friendship.createdAt)}
                         </p>
                       </div>
-                      <div className="relative shrink-0" data-friend-menu>
+                      <div className="relative shrink-0" data-connection-menu>
                         <button
                           aria-expanded={isFriendMenuOpen}
                           aria-haspopup="menu"
                           aria-label={`More actions for ${friendUsername}`}
                           className="grid h-9 w-9 cursor-pointer list-none place-items-center rounded-md border border-teal-200 bg-white/70 text-xl font-black leading-none text-slate-500 transition hover:border-teal-400 hover:text-slate-950 dark:border-teal-500/35 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:text-white"
-                          onClick={() =>
+                          onClick={() => {
+                            setOpenBlockedMenuId(null);
                             setOpenFriendMenuId((currentMenuId) =>
                               currentMenuId === friendship.id
                                 ? null
                                 : friendship.id,
-                            )
-                          }
+                            );
+                          }}
                           type="button"
                         >
                           ...
@@ -512,6 +529,14 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
                             >
                               Remove
                             </button>
+                            <Link
+                              className="rounded-md px-3 py-2 text-left text-sm font-bold text-rose-700 transition hover:bg-rose-50 hover:text-rose-900 focus-visible:bg-rose-50 focus-visible:text-rose-900 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-rose-300 dark:text-rose-200 dark:hover:bg-rose-950/40 dark:hover:text-rose-100 dark:focus-visible:bg-rose-950/40 dark:focus-visible:text-rose-100 dark:focus-visible:outline-rose-400"
+                              href={getReportHref(friendUsername)}
+                              onClick={() => setOpenFriendMenuId(null)}
+                              role="menuitem"
+                            >
+                              Report
+                            </Link>
                             <button
                               className="rounded-md px-3 py-2 text-left text-sm font-bold text-rose-700 transition hover:bg-rose-50 hover:text-rose-900 dark:text-rose-200 dark:hover:bg-rose-950/40 dark:hover:text-rose-100"
                               disabled={
@@ -549,7 +574,21 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
                   isManaging={
                     managingUsername === `unblock:${block.blockedUsername}`
                   }
+                  isMenuOpen={openBlockedMenuId === block.id}
                   key={block.id}
+                  onCloseMenu={() => setOpenBlockedMenuId(null)}
+                  onToggleMenu={() => {
+                    setOpenFriendMenuId(null);
+                    setOpenBlockedMenuId((currentMenuId) =>
+                      currentMenuId === block.id ? null : block.id,
+                    );
+                  }}
+                  onRemoveBlock={() =>
+                    void handleFriendAction(
+                      block.blockedUsername,
+                      "remove_block",
+                    )
+                  }
                   onUnblock={() =>
                     void handleFriendAction(block.blockedUsername, "unblock")
                   }
@@ -586,31 +625,90 @@ function ConnectionEmptyGuide() {
 function BlockedUserCard({
   block,
   isManaging,
+  isMenuOpen,
+  onCloseMenu,
+  onRemoveBlock,
+  onToggleMenu,
   onUnblock,
 }: {
   block: BlockedConnection;
   isManaging: boolean;
+  isMenuOpen: boolean;
+  onCloseMenu: () => void;
+  onRemoveBlock: () => void;
+  onToggleMenu: () => void;
   onUnblock: () => void;
 }) {
   return (
-    <article className="rounded-md border border-rose-200 bg-rose-50 p-4 shadow-sm">
-      <Link
-        className="inline-block max-w-full truncate text-lg font-bold text-slate-950 transition hover:text-rose-800 focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200"
-        href={getProfileHref(block.blockedUsername)}
-      >
-        @{block.blockedUsername}
-      </Link>
-      <p className="mt-1 text-sm font-semibold text-rose-800">
-        Blocked {formatDate(block.createdAt)}
-      </p>
-      <button
-        className="btn btn-secondary btn-sm mt-4"
-        disabled={isManaging}
-        onClick={onUnblock}
-        type="button"
-      >
-        Unblock
-      </button>
+    <article
+      className={`relative overflow-visible rounded-md border border-rose-200 bg-rose-50 p-4 shadow-sm ${
+        isMenuOpen ? "z-50" : "z-0 focus-within:z-30 hover:z-30"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Link
+            className="block truncate text-lg font-bold text-slate-950 transition hover:text-rose-800 focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200"
+            href={getProfileHref(block.blockedUsername)}
+          >
+            @{block.blockedUsername}
+          </Link>
+          <p className="mt-1 text-sm font-semibold text-rose-800">
+            Blocked {formatDate(block.createdAt)}
+          </p>
+        </div>
+        <div className="relative shrink-0" data-connection-menu>
+          <button
+            aria-expanded={isMenuOpen}
+            aria-haspopup="menu"
+            aria-label={`More actions for ${block.blockedUsername}`}
+            className="grid h-9 w-9 cursor-pointer list-none place-items-center rounded-md border border-rose-200 bg-white/70 text-xl font-black leading-none text-slate-500 transition hover:border-rose-400 hover:text-slate-950 dark:border-rose-500/35 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:text-white"
+            onClick={onToggleMenu}
+            type="button"
+          >
+            ...
+          </button>
+          {isMenuOpen ? (
+            <div
+              className="absolute right-0 z-50 mt-2 grid min-w-36 gap-1 rounded-md border border-slate-200 bg-white p-2 shadow-xl shadow-slate-950/10 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/30"
+              role="menu"
+            >
+              <button
+                className="rounded-md border border-transparent px-3 py-2 text-left text-sm font-bold text-slate-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-950 focus-visible:border-teal-300 focus-visible:bg-teal-50 focus-visible:text-teal-950 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-300 active:bg-teal-100 dark:text-slate-200 dark:hover:border-teal-400 dark:hover:bg-teal-950/50 dark:hover:text-teal-50 dark:focus-visible:border-teal-400 dark:focus-visible:bg-teal-950/50 dark:focus-visible:text-teal-50 dark:focus-visible:outline-teal-400"
+                disabled={isManaging}
+                onClick={() => {
+                  onCloseMenu();
+                  onUnblock();
+                }}
+                role="menuitem"
+                type="button"
+              >
+                Unblock
+              </button>
+              <button
+                className="rounded-md px-3 py-2 text-left text-sm font-bold text-rose-700 transition hover:bg-rose-50 hover:text-rose-900 focus-visible:bg-rose-50 focus-visible:text-rose-900 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-rose-300 dark:text-rose-200 dark:hover:bg-rose-950/40 dark:hover:text-rose-100 dark:focus-visible:bg-rose-950/40 dark:focus-visible:text-rose-100 dark:focus-visible:outline-rose-400"
+                disabled={isManaging}
+                onClick={() => {
+                  onCloseMenu();
+                  onRemoveBlock();
+                }}
+                role="menuitem"
+                type="button"
+              >
+                Remove
+              </button>
+              <Link
+                className="rounded-md px-3 py-2 text-left text-sm font-bold text-rose-700 transition hover:bg-rose-50 hover:text-rose-900 focus-visible:bg-rose-50 focus-visible:text-rose-900 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-rose-300 dark:text-rose-200 dark:hover:bg-rose-950/40 dark:hover:text-rose-100 dark:focus-visible:bg-rose-950/40 dark:focus-visible:text-rose-100 dark:focus-visible:outline-rose-400"
+                href={getReportHref(block.blockedUsername)}
+                onClick={onCloseMenu}
+                role="menuitem"
+              >
+                Report
+              </Link>
+            </div>
+          ) : null}
+        </div>
+      </div>
     </article>
   );
 }

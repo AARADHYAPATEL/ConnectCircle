@@ -1,6 +1,6 @@
 import {
-  isChatImageAttachment,
-  type ChatImageAttachment,
+  isChatMediaAttachment,
+  type ChatMediaAttachment,
 } from "@/lib/chatImageAttachments";
 
 export const chatMessageLimit = 500;
@@ -10,7 +10,7 @@ export type ChatMessage = {
   fromUsername: string;
   toUsername: string;
   message: string;
-  imageAttachment?: ChatImageAttachment;
+  imageAttachment?: ChatMediaAttachment;
   createdAt: string;
   editedAt?: string;
 };
@@ -43,7 +43,7 @@ export function isChatMessage(value: unknown): value is ChatMessage {
     typeof message.toUsername === "string" &&
     typeof message.message === "string" &&
     (message.imageAttachment === undefined ||
-      isChatImageAttachment(message.imageAttachment)) &&
+      isChatMediaAttachment(message.imageAttachment)) &&
     typeof message.createdAt === "string" &&
     (message.editedAt === undefined || typeof message.editedAt === "string")
   );

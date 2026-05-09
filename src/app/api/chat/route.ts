@@ -7,8 +7,8 @@ import {
   sendChatMessage,
 } from "@/lib/chatStore";
 import {
-  validateOptionalChatImageAttachment,
-  type ChatImageAttachment,
+  validateOptionalChatMediaAttachment,
+  type ChatMediaAttachment,
 } from "@/lib/chatImageAttachments";
 import { getCurrentUser } from "@/lib/session";
 
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   const chatMessage = body as Record<string, unknown>;
   const toUsername = chatMessage.toUsername;
   const message = chatMessage.message;
-  const imageAttachment = validateOptionalChatImageAttachment(
+  const mediaAttachment = validateOptionalChatMediaAttachment(
     chatMessage.imageAttachment,
   );
 
@@ -73,9 +73,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Message is required." }, { status: 400 });
   }
 
-  if (imageAttachment.error) {
+  if (mediaAttachment.error) {
     return NextResponse.json(
-      { error: imageAttachment.error },
+      { error: mediaAttachment.error },
       { status: 400 },
     );
   }
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
     user.username,
     toUsername,
     message,
-    imageAttachment.attachment,
+    mediaAttachment.attachment,
   );
 
   if (result.error) {
@@ -116,7 +116,7 @@ export async function PATCH(request: Request) {
   const chatMessage = body as Record<string, unknown>;
   const messageId = chatMessage.id;
   const message = chatMessage.message;
-  let nextImageAttachment: ChatImageAttachment | null | undefined;
+  let nextMediaAttachment: ChatMediaAttachment | null | undefined;
 
   if (typeof messageId !== "string" || !messageId.trim()) {
     return NextResponse.json({ error: "Message id is required." }, { status: 400 });
@@ -127,25 +127,25 @@ export async function PATCH(request: Request) {
   }
 
   if (Object.prototype.hasOwnProperty.call(chatMessage, "imageAttachment")) {
-    const imageAttachment = validateOptionalChatImageAttachment(
+    const mediaAttachment = validateOptionalChatMediaAttachment(
       chatMessage.imageAttachment,
     );
 
-    if (imageAttachment.error) {
+    if (mediaAttachment.error) {
       return NextResponse.json(
-        { error: imageAttachment.error },
+        { error: mediaAttachment.error },
         { status: 400 },
       );
     }
 
-    nextImageAttachment = imageAttachment.attachment;
+    nextMediaAttachment = mediaAttachment.attachment;
   }
 
   const result = await editChatMessage(
     user.username,
     messageId,
     message,
-    nextImageAttachment,
+    nextMediaAttachment,
   );
 
   if (result.error) {

@@ -27,6 +27,7 @@ export type BlockedConnection = {
   blockerUsername: string;
   blockedUsername: string;
   createdAt: string;
+  removedFromListAt?: string;
 };
 
 export type ConnectionSummary = {

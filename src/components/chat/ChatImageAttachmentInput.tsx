@@ -3,15 +3,20 @@
 import { useRef } from "react";
 import {
   chatImageAttachmentMimeTypes,
+  chatMediaAttachmentMimeTypes,
+  getChatMediaAttachmentKind,
+  isChatVideoAttachment,
   validateImageAttachment,
+  validateMediaAttachment,
   type ChatImageAttachment,
+  type ChatMediaAttachment,
 } from "@/lib/chatImageAttachments";
 
 type ChatImageAttachmentInputProps = {
-  attachment: ChatImageAttachment | null;
+  attachment: ChatMediaAttachment | null;
   density?: "default" | "compact";
   disabled?: boolean;
-  onAttachmentChange: (attachment: ChatImageAttachment | null) => void;
+  onAttachmentChange: (attachment: ChatMediaAttachment | null) => void;
   onError: (error: string) => void;
   tone: "emerald" | "teal";
 };
@@ -49,9 +54,9 @@ function readFileAsDataUrl(file: File) {
         return;
       }
 
-      reject(new Error("Image could not be read."));
+      reject(new Error("File could not be read."));
     };
-    reader.onerror = () => reject(new Error("Image could not be read."));
+    reader.onerror = () => reject(new Error("File could not be read."));
     reader.readAsDataURL(file);
   });
 }
@@ -88,12 +93,20 @@ function dataUrlToPngBlob(dataUrl: string) {
   });
 }
 
-async function writeImageBlobToClipboard(blob: Blob) {
+async function writeBlobToClipboard(blob: Blob) {
   await navigator.clipboard.write([
     new ClipboardItem({
       [blob.type]: blob,
     }),
   ]);
+}
+
+function isImageFile(file: File) {
+  return chatImageAttachmentMimeTypes.some((mimeType) => mimeType === file.type);
+}
+
+function isMediaFile(file: File) {
+  return chatMediaAttachmentMimeTypes.some((mimeType) => mimeType === file.type);
 }
 
 export function getClipboardImageFiles(clipboardData: DataTransfer) {
@@ -111,22 +124,49 @@ export function getClipboardImageFiles(clipboardData: DataTransfer) {
   );
 }
 
+export function getClipboardMediaFiles(clipboardData: DataTransfer) {
+  const itemMediaFiles = Array.from(clipboardData.items)
+    .filter(
+      (item) =>
+        item.kind === "file" &&
+        (item.type.startsWith("image/") || item.type.startsWith("video/")),
+    )
+    .map((item) => item.getAsFile())
+    .filter((file): file is File => Boolean(file));
+
+  if (itemMediaFiles.length > 0) {
+    return itemMediaFiles;
+  }
+
+  return Array.from(clipboardData.files).filter(
+    (file) => file.type.startsWith("image/") || file.type.startsWith("video/"),
+  );
+}
+
 export function getClipboardImageFile(clipboardData: DataTransfer) {
   return getClipboardImageFiles(clipboardData)[0] ?? null;
 }
 
+export function getClipboardMediaFile(clipboardData: DataTransfer) {
+  return getClipboardMediaFiles(clipboardData)[0] ?? null;
+}
+
 export async function createChatImageAttachmentFromFile(file: File) {
-  return createImageAttachmentFromFile(file);
+  return createMediaAttachmentFromFile(file);
+}
+
+export async function createChatMediaAttachmentFromFile(file: File) {
+  return createMediaAttachmentFromFile(file);
 }
 
 export async function createImageAttachmentFromFile(
   file: File,
   options: { maxBytes?: number | null; tooLargeMessage?: string } = {},
-) {
+): Promise<ChatImageAttachment> {
   const maxBytes = options.maxBytes ?? null;
   const tooLargeMessage = options.tooLargeMessage ?? "Image is too large.";
 
-  if (!chatImageAttachmentMimeTypes.some((mimeType) => mimeType === file.type)) {
+  if (!isImageFile(file)) {
     throw new Error("Choose a JPG, PNG, WebP, or GIF image.");
   }
 
@@ -155,25 +195,72 @@ export async function createImageAttachmentFromFile(
   return validation.attachment;
 }
 
+export async function createMediaAttachmentFromFile(
+  file: File,
+  options: { maxBytes?: number | null; tooLargeMessage?: string } = {},
+): Promise<ChatMediaAttachment> {
+  const maxBytes = options.maxBytes ?? null;
+  const tooLargeMessage = options.tooLargeMessage ?? "Attachment is too large.";
+
+  if (!isMediaFile(file)) {
+    throw new Error("Choose a JPG, PNG, WebP, GIF, MP4, WebM, or Ogg file.");
+  }
+
+  if (typeof maxBytes === "number" && file.size > maxBytes) {
+    throw new Error(tooLargeMessage);
+  }
+
+  const dataUrl = await readFileAsDataUrl(file);
+  const validation = validateMediaAttachment(
+    {
+      dataUrl,
+      kind: file.type.startsWith("video/") ? "video" : "image",
+      name: file.name || "pasted attachment",
+      size: file.size,
+      type: file.type,
+    },
+    {
+      maxBytes,
+      tooLargeMessage,
+    },
+  );
+
+  if (validation.error || !validation.attachment) {
+    throw new Error(validation.error || "Attachment could not be attached.");
+  }
+
+  return validation.attachment;
+}
+
 export async function copyChatImageAttachmentToClipboard(
-  attachment: ChatImageAttachment,
+  attachment: ChatMediaAttachment,
+) {
+  return copyChatMediaAttachmentToClipboard(attachment);
+}
+
+export async function copyChatMediaAttachmentToClipboard(
+  attachment: ChatMediaAttachment,
 ) {
   if (
     typeof ClipboardItem === "undefined" ||
     !navigator.clipboard ||
     typeof navigator.clipboard.write !== "function"
   ) {
-    throw new Error("Image copy is not supported in this browser.");
+    throw new Error("Copying attachments is not supported in this browser.");
   }
 
   const response = await fetch(attachment.dataUrl);
   const blob = await response.blob();
 
   try {
-    await writeImageBlobToClipboard(blob);
+    await writeBlobToClipboard(blob);
   } catch {
+    if (isChatVideoAttachment(attachment)) {
+      throw new Error("Video copy is not supported in this browser.");
+    }
+
     const pngBlob = await dataUrlToPngBlob(attachment.dataUrl);
-    await writeImageBlobToClipboard(pngBlob);
+    await writeBlobToClipboard(pngBlob);
   }
 }
 
@@ -187,27 +274,30 @@ export function ChatImageAttachmentInput({
 }: ChatImageAttachmentInputProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const classes = toneClasses[tone];
-  const acceptValue = chatImageAttachmentMimeTypes.join(",");
+  const acceptValue = chatMediaAttachmentMimeTypes.join(",");
   const isCompact = density === "compact";
+  const attachmentKind = attachment
+    ? getChatMediaAttachmentKind(attachment)
+    : null;
 
   async function handleFileSelection(file: File | undefined) {
     if (!file) {
       return;
     }
 
-    if (!chatImageAttachmentMimeTypes.some((mimeType) => mimeType === file.type)) {
-      onError("Choose a JPG, PNG, WebP, or GIF image.");
+    if (!isMediaFile(file)) {
+      onError("Choose a JPG, PNG, WebP, GIF, MP4, WebM, or Ogg file.");
       return;
     }
 
     try {
-      const attachment = await createChatImageAttachmentFromFile(file);
+      const attachment = await createChatMediaAttachmentFromFile(file);
 
       onAttachmentChange(attachment);
       onError("");
     } catch (error) {
       onError(
-        error instanceof Error ? error.message : "Image could not be attached.",
+        error instanceof Error ? error.message : "Attachment could not be attached.",
       );
     } finally {
       if (fileInputRef.current) {
@@ -236,7 +326,7 @@ export function ChatImageAttachmentInput({
         onClick={() => fileInputRef.current?.click()}
         type="button"
       >
-        Attach image
+        Attach image or video
       </button>
 
       {attachment ? (
@@ -245,21 +335,35 @@ export function ChatImageAttachmentInput({
             isCompact ? "mt-2 p-2" : "mt-3 p-3"
           } ${classes.previewBorder}`}
         >
-          <div
-            aria-label={attachment.name}
-            className={`shrink-0 rounded-md border bg-contain bg-center bg-no-repeat ${
-              isCompact ? "h-12 w-16" : "h-16 w-20"
-            } ${classes.previewImage}`}
-            role="img"
-            style={{
-              backgroundImage: `url(${JSON.stringify(attachment.dataUrl)})`,
-            }}
-          />
+          {attachmentKind === "video" ? (
+            <video
+              aria-label={attachment.name}
+              className={`shrink-0 rounded-md border object-cover ${
+                isCompact ? "h-12 w-16" : "h-16 w-20"
+              } ${classes.previewImage}`}
+              muted
+              playsInline
+              preload="metadata"
+              src={attachment.dataUrl}
+            />
+          ) : (
+            <div
+              aria-label={attachment.name}
+              className={`shrink-0 rounded-md border bg-contain bg-center bg-no-repeat ${
+                isCompact ? "h-12 w-16" : "h-16 w-20"
+              } ${classes.previewImage}`}
+              role="img"
+              style={{
+                backgroundImage: `url(${JSON.stringify(attachment.dataUrl)})`,
+              }}
+            />
+          )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-slate-900">
               {attachment.name}
             </p>
             <p className="mt-1 text-xs font-semibold text-slate-500">
+              {attachmentKind === "video" ? "Video" : "Image"} -{" "}
               {formatBytes(attachment.size)}
             </p>
           </div>

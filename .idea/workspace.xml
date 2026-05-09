@@ -5,13 +5,50 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="Major updates and bug fixes.">
+      <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cloudflared-20260504-084243.err.log" beforeDir="false" afterPath="$PROJECT_DIR$/cloudflared-20260504-084243.err.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PROJECT_CONTEXT.md" beforeDir="false" afterPath="$PROJECT_DIR$/PROJECT_CONTEXT.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cloudflared-20260504-084243.err.log" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cloudflared-20260504-084243.out.log" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/chat/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/chat/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/circles/chat/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/circles/chat/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/connections/manage/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/connections/manage/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/people/[username]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/people/[username]/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/chat/ChatImageAttachmentInput.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/chat/ChatImageAttachmentInput.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/chat/MessageActionsMenu.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/chat/MessageActionsMenu.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/circles/CircleRoomPanel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/circles/CircleRoomPanel.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/social/ChatPanel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/social/ChatPanel.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/social/ConnectionsPanel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/social/ConnectionsPanel.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/chatImageAttachments.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/chatImageAttachments.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/chatStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/chatStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/chatTypes.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/chatTypes.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/circleStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/circleStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/circleTypes.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/circleTypes.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/connectionStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/connectionStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/connectionTypes.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/connectionTypes.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="CopilotChats">
+    <option name="panelChat">
+      <chat>
+        <option name="activeSessionId" value="eb188c58-c688-4d23-a19a-4ef7a501447e" />
+        <option name="sessions">
+          <session>
+            <option name="chatType" value="PANEL" />
+            <option name="id" value="eb188c58-c688-4d23-a19a-4ef7a501447e" />
+            <option name="modeId" value="Ask" />
+            <option name="modelType" value="builtin_family" />
+            <option name="modelValue" value="auto" />
+            <option name="targetType" value="LOCAL" />
+          </session>
+        </option>
+        <option name="type" value="PANEL" />
+      </chat>
+    </option>
   </component>
   <component name="CopilotPersistence">
     <persistenceIdMap>
@@ -19,7 +56,7 @@
     </persistenceIdMap>
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="136" />
+    <option name="cachedIndexableFilesCount" value="164" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="Git.Settings">
@@ -117,6 +154,9 @@
       <workItem from="1777566617039" duration="2475000" />
       <workItem from="1777605574288" duration="30201000" />
       <workItem from="1777864546528" duration="4600000" />
+      <workItem from="1778227442437" duration="8802000" />
+      <workItem from="1778299657976" duration="819000" />
+      <workItem from="1778313750706" duration="239000" />
     </task>
     <task id="LOCAL-00001" summary="This is ConnectCircle, where students can share their mood, send supportive messages to friends and build stronger peer relationships.">
       <option name="closed" value="true" />
@@ -158,11 +198,30 @@
       <option name="project" value="LOCAL" />
       <updated>1777875284151</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="Major updates and bug fixes.">
+      <option name="closed" value="true" />
+      <created>1777875321158</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1777875321158</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="This is ConnectCircle, where students can share their mood, send supportive messages to friends and build stronger peer relationships." />

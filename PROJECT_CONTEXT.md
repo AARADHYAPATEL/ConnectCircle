@@ -17,6 +17,8 @@ Users can:
 - Use CircleChat, the group chat inside Circle Rooms
 - View and edit basic profile identity details
 - View other users' profiles from people search and connection lists, with each profile honoring its owner's visibility and availability settings
+- Report other users from profiles, direct messages, and CircleChat messages
+- Report accepted friends from the Friends action menu
 
 ## Main Sections
 ### Homepage
@@ -50,17 +52,19 @@ Users can:
 - View existing friends
 - Remove friends
 - Block friends/users
+- Manage blocked users from a three-dot menu with unblock, remove, and report actions; remove hides the user from the visible blocked-users list while keeping the block active
 - Open friend and request profiles from the connection management cards
 - Search for people by username and open matching profiles before sending a connection request
 
 ### Chat / CircleChat
 Chat supports:
 - Normal text messages
-- Image attachments from the user's computer, with optional text captions, in both direct messages and CircleChat; chat images do not have an app-enforced file size cap
-- Pasting an image into the compose or edit textarea attaches it as the message image
+- Image and video attachments from the user's computer, with optional text captions, in both direct messages and CircleChat; chat media does not have an app-enforced file size cap
+- Pasting an image or video into the compose or edit textarea attaches it as the message media when the browser exposes the pasted file
 - Message bubble actions are grouped under a three-dot menu
-- Image messages include a copy action in the three-dot menu that copies the attachment back to the clipboard when the browser allows it
-- A user's own messages include edit and delete actions in the three-dot menu; editing supports updating the text, replacing the attached image, or removing the attached image
+- Image and video messages include a copy action in the three-dot menu that copies the attachment back to the clipboard when the browser allows it
+- A user's own messages include edit and delete actions in the three-dot menu; editing supports updating the text, replacing the attached image/video, or removing the attachment
+- Other users' messages include a report action in the three-dot menu; report submissions are private and store a message text/media metadata snapshot for moderator review
 - Direct messages and CircleChat can be expanded for a wider message reading view, then minimized back to the standard layout
 - Emoji shortcuts using `:emoji_name:` format
   - Example: `:smile:` becomes 😄
@@ -71,6 +75,33 @@ Users can:
 - Attach or paste up to five images to feedback
 - Allow or decline developer follow-up contact
 - Send feedback to the developer by email through Resend when feedback email environment variables are configured
+
+### Reports / Safety
+Users can:
+- Report another user's profile from a dedicated `/people/[username]/report` page opened from the public profile page
+- Report an accepted friend from the Friends action menu, which opens that same dedicated report page
+- Report another user's direct message from the message actions menu
+- Report another user's CircleChat message from the message actions menu
+- Choose a report reason and optionally add details
+
+Reports are stored privately in `.data/reports.json` with reporter, reported user, reason, context, timestamp, status, and message text/media metadata snapshots for message reports. Duplicate open/reviewing reports from the same reporter for the same context are blocked.
+
+### Admin Safety Review
+Admins can:
+- Sign in through the separate `/admin/login` page with an admin account, not a student account
+- View all submitted reports from `/admin/reports`
+- Open a report detail page at `/admin/reports/[reportId]`
+- Review reporter, reported user, reason, context, message snapshot, media metadata, and timestamps
+- Change report status between open, reviewing, resolved, and dismissed
+- Add an internal resolution note
+- Download each report as a `.txt` file for offline review or record keeping
+
+Admin access is intentionally separate from student access. Admin users are stored in `.data/admin-users.json` with scrypt password hashes, and the first admin account is bootstrapped from environment variables:
+- `CONNECTCIRCLE_ADMIN_USERNAME`
+- `CONNECTCIRCLE_ADMIN_PASSWORD`
+- `CONNECTCIRCLE_ADMIN_SESSION_SECRET`
+
+Admin sessions use a separate signed cookie from normal student sessions, and admin login attempts are rate limited through `.data/admin-login-attempts.json`.
 
 ### Friends
 A section for managing personal connections.
@@ -87,12 +118,13 @@ Each Circle Room contains:
 
 ### CircleChat
 Group chat inside a Circle Room.
-Supports text, emoji shortcodes, pasted images, and image attachments from the user's computer without an app-enforced file size cap. Users can expand CircleChat for a wider message reading view. Message actions are grouped under a three-dot menu where users can copy image attachments, edit their own CircleChat messages, or delete their own CircleChat messages.
+Supports text, emoji shortcodes, pasted images/videos, and image/video attachments from the user's computer without an app-enforced file size cap. Users can expand CircleChat for a wider message reading view. Message actions are grouped under a three-dot menu where users can report other users' CircleChat messages, copy media attachments, edit their own CircleChat messages, or delete their own CircleChat messages.
 
 ## Authentication
 Supports:
 - Email/password account creation
 - Google account creation/sign-in
+- Separate admin authentication for the safety review area
 
 Do not assume the auth library until checking the project files.
 
@@ -106,10 +138,10 @@ Before modifying code:
 
 ## Current Development State
 Fill in:
-- Current task: Moved chat message actions into a three-dot menu for direct messages and CircleChat.
-- Recently changed files: Shared message action menu; direct message panel; Circle room panel; project context.
-- Known bugs: None known from this pass; lint and production build still need to be rerun after this menu change.
-- Next steps: Browser-review message action menus for text-only and image messages in both direct messages and CircleChat.
+- Current task: Added a separate admin safety review area with secured admin login, report list/detail pages, report status updates, internal resolution notes, and downloadable text reports.
+- Recently changed files: Admin store/session helpers; admin login/logout/report APIs; admin login, report list, and report detail pages; admin header/logout/status components; report store review/download helpers; environment example; project context.
+- Known bugs: None known from this pass. Lint passes with existing Next.js `<img>` warnings in chat image previews; production build passes.
+- Next steps: Set `CONNECTCIRCLE_ADMIN_USERNAME`, `CONNECTCIRCLE_ADMIN_PASSWORD`, and `CONNECTCIRCLE_ADMIN_SESSION_SECRET` in `.env.local`, then browser-test `/admin/login`, report downloads, and status updates with real submitted reports.
 
 ## File Map
 Fill in after scanning repo:

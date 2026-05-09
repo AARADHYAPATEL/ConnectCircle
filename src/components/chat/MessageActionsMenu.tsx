@@ -4,32 +4,38 @@ import { useEffect, useRef, useState } from "react";
 
 type MessageActionsMenuProps = {
   align: "left" | "right";
-  canCopyImage: boolean;
+  canCopyMedia: boolean;
   canDelete: boolean;
   canEdit: boolean;
+  canReport?: boolean;
   disabled?: boolean;
-  isImageCopied: boolean;
-  onCopyImage: () => void;
+  isMediaCopied: boolean;
+  mediaKind?: "image" | "video";
+  onCopyMedia: () => void;
   onDelete: () => void;
   onEdit: () => void;
+  onReport?: () => void;
   surface: "default" | "mine";
 };
 
 export function MessageActionsMenu({
   align,
-  canCopyImage,
+  canCopyMedia,
   canDelete,
   canEdit,
+  canReport = false,
   disabled = false,
-  isImageCopied,
-  onCopyImage,
+  isMediaCopied,
+  mediaKind = "image",
+  onCopyMedia,
   onDelete,
   onEdit,
+  onReport,
   surface,
 }: MessageActionsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const hasActions = canCopyImage || canEdit || canDelete;
+  const hasActions = canCopyMedia || canEdit || canDelete || canReport;
   const isDisabled = disabled || !hasActions;
 
   useEffect(() => {
@@ -97,14 +103,18 @@ export function MessageActionsMenu({
           role="menu"
           style={{ animation: "panel-enter 180ms var(--ease-fluid) both" }}
         >
-          {canCopyImage ? (
+          {canCopyMedia ? (
             <button
               className="rounded-md border border-transparent px-3 py-2 text-left text-sm font-bold text-slate-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 dark:text-slate-200 dark:hover:border-teal-400 dark:hover:bg-teal-950/50 dark:hover:text-teal-50"
-              onClick={() => runAction(onCopyImage)}
+              onClick={() => runAction(onCopyMedia)}
               role="menuitem"
               type="button"
             >
-              {isImageCopied ? "Copied" : "Copy image"}
+              {isMediaCopied
+                ? "Copied"
+                : mediaKind === "video"
+                  ? "Copy video"
+                  : "Copy image"}
             </button>
           ) : null}
           {canEdit ? (
@@ -115,6 +125,16 @@ export function MessageActionsMenu({
               type="button"
             >
               Edit
+            </button>
+          ) : null}
+          {canReport && onReport ? (
+            <button
+              className="rounded-md px-3 py-2 text-left text-sm font-bold text-rose-700 transition hover:bg-rose-50 hover:text-rose-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 dark:text-rose-200 dark:hover:bg-rose-950/40 dark:hover:text-rose-100"
+              onClick={() => runAction(onReport)}
+              role="menuitem"
+              type="button"
+            >
+              Report
             </button>
           ) : null}
           {canDelete ? (

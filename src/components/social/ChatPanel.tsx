@@ -4,12 +4,16 @@ import { useEffect, useRef, useState, type ClipboardEvent } from "react";
 import { EmojiPicker } from "@/components/chat/EmojiPicker";
 import {
   ChatImageAttachmentInput,
-  copyChatImageAttachmentToClipboard,
-  createChatImageAttachmentFromFile,
-  getClipboardImageFile,
+  copyChatMediaAttachmentToClipboard,
+  createChatMediaAttachmentFromFile,
+  getClipboardMediaFile,
 } from "@/components/chat/ChatImageAttachmentInput";
 import { MessageActionsMenu } from "@/components/chat/MessageActionsMenu";
-import type { ChatImageAttachment } from "@/lib/chatImageAttachments";
+import { ReportUserDialog } from "@/components/reports/ReportUserButton";
+import {
+  getChatMediaAttachmentKind,
+  type ChatMediaAttachment,
+} from "@/lib/chatImageAttachments";
 import {
   chatMessageLimit,
   type ChatMessage,
@@ -54,10 +58,15 @@ function formatChatDate(value: string) {
 function formatChatPreview(message: ChatMessage, username: string) {
   const renderedMessage = renderEmojiShortcodes(message.message);
   const messagePrefix = message.fromUsername === username ? "You: " : "";
+  const attachmentLabel =
+    message.imageAttachment &&
+    getChatMediaAttachmentKind(message.imageAttachment) === "video"
+      ? "Video"
+      : "Photo";
   const messageContent = message.imageAttachment
     ? renderedMessage
-      ? `Photo · ${renderedMessage}`
-      : "Photo"
+      ? `${attachmentLabel} - ${renderedMessage}`
+      : attachmentLabel
     : renderedMessage;
   const editedSuffix = message.editedAt ? " (edited)" : "";
 
@@ -119,7 +128,7 @@ export function ChatPanel({ username }: ChatPanelProps) {
   const [thread, setThread] = useState<ChatThread | null>(null);
   const [message, setMessage] = useState("");
   const [selectedImageAttachment, setSelectedImageAttachment] =
-    useState<ChatImageAttachment | null>(null);
+    useState<ChatMediaAttachment | null>(null);
   const [composerCursorPosition, setComposerCursorPosition] = useState(0);
   const [isLoadingOverview, setIsLoadingOverview] = useState(true);
   const [isLoadingThread, setIsLoadingThread] = useState(false);
@@ -127,11 +136,15 @@ export function ChatPanel({ username }: ChatPanelProps) {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingMessageText, setEditingMessageText] = useState("");
   const [editingImageAttachment, setEditingImageAttachment] =
-    useState<ChatImageAttachment | null>(null);
+    useState<ChatMediaAttachment | null>(null);
   const [mutatingMessageId, setMutatingMessageId] = useState<string | null>(
     null,
   );
   const [error, setError] = useState("");
+  const [reportNotice, setReportNotice] = useState("");
+  const [reportingMessage, setReportingMessage] = useState<ChatMessage | null>(
+    null,
+  );
   const [copiedImageMessageId, setCopiedImageMessageId] = useState<
     string | null
   >(null);
@@ -305,6 +318,7 @@ export function ChatPanel({ username }: ChatPanelProps) {
 
     setIsSending(true);
     setError("");
+    setReportNotice("");
 
     try {
       const response = await fetch("/api/chat", {
@@ -347,16 +361,16 @@ export function ChatPanel({ username }: ChatPanelProps) {
   async function handleComposerPaste(
     event: ClipboardEvent<HTMLTextAreaElement>,
   ) {
-    const imageFile = getClipboardImageFile(event.clipboardData);
+    const mediaFile = getClipboardMediaFile(event.clipboardData);
 
-    if (!imageFile) {
+    if (!mediaFile) {
       return;
     }
 
     event.preventDefault();
 
     try {
-      const attachment = await createChatImageAttachmentFromFile(imageFile);
+      const attachment = await createChatMediaAttachmentFromFile(mediaFile);
 
       setSelectedImageAttachment(attachment);
       setError("");
@@ -364,7 +378,7 @@ export function ChatPanel({ username }: ChatPanelProps) {
       setError(
         pasteError instanceof Error
           ? pasteError.message
-          : "Image could not be attached.",
+          : "Attachment could not be attached.",
       );
     }
   }
@@ -420,16 +434,16 @@ export function ChatPanel({ username }: ChatPanelProps) {
   async function handleEditComposerPaste(
     event: ClipboardEvent<HTMLTextAreaElement>,
   ) {
-    const imageFile = getClipboardImageFile(event.clipboardData);
+    const mediaFile = getClipboardMediaFile(event.clipboardData);
 
-    if (!imageFile) {
+    if (!mediaFile) {
       return;
     }
 
     event.preventDefault();
 
     try {
-      const attachment = await createChatImageAttachmentFromFile(imageFile);
+      const attachment = await createChatMediaAttachmentFromFile(mediaFile);
 
       setEditingImageAttachment(attachment);
       setError("");
@@ -437,7 +451,7 @@ export function ChatPanel({ username }: ChatPanelProps) {
       setError(
         pasteError instanceof Error
           ? pasteError.message
-          : "Image could not be attached.",
+          : "Attachment could not be attached.",
       );
     }
   }
@@ -511,6 +525,7 @@ export function ChatPanel({ username }: ChatPanelProps) {
 
     setMutatingMessageId(messageId);
     setError("");
+    setReportNotice("");
 
     try {
       const response = await fetch("/api/chat", {
@@ -551,6 +566,7 @@ export function ChatPanel({ username }: ChatPanelProps) {
 
     setMutatingMessageId(chatMessage.id);
     setError("");
+    setReportNotice("");
 
     try {
       const response = await fetch("/api/chat", {
@@ -587,9 +603,10 @@ export function ChatPanel({ username }: ChatPanelProps) {
     }
 
     setError("");
+    setReportNotice("");
 
     try {
-      await copyChatImageAttachmentToClipboard(chatMessage.imageAttachment);
+      await copyChatMediaAttachmentToClipboard(chatMessage.imageAttachment);
       setCopiedImageMessageId(chatMessage.id);
 
       if (copyImageResetTimeoutRef.current) {
@@ -605,7 +622,7 @@ export function ChatPanel({ username }: ChatPanelProps) {
       setError(
         copyError instanceof Error
           ? copyError.message
-          : "Image could not be copied.",
+          : "Attachment could not be copied.",
       );
     }
   }
@@ -773,6 +790,10 @@ export function ChatPanel({ username }: ChatPanelProps) {
                   message={chatMessage}
                   onCopyImage={() => void handleCopyMessageImage(chatMessage)}
                   onDelete={() => void handleDeleteMessage(chatMessage)}
+                  onReport={() => {
+                    setReportNotice("");
+                    setReportingMessage(chatMessage);
+                  }}
                   onStartEdit={() => startEditingMessage(chatMessage)}
                 />
               ))}
@@ -792,7 +813,12 @@ export function ChatPanel({ username }: ChatPanelProps) {
                       <p className="mt-1 truncate text-sm font-semibold text-slate-700">
                         {editingMessage.message
                           ? renderEmojiShortcodes(editingMessage.message)
-                          : "Photo"}
+                          : editingMessage.imageAttachment &&
+                              getChatMediaAttachmentKind(
+                                editingMessage.imageAttachment,
+                              ) === "video"
+                            ? "Video"
+                            : "Photo"}
                       </p>
                     </div>
                     <button
@@ -1037,9 +1063,33 @@ export function ChatPanel({ username }: ChatPanelProps) {
                 {error}
               </p>
             ) : null}
+            {reportNotice ? (
+              <p className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">
+                {reportNotice}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
+      {reportingMessage ? (
+        <ReportUserDialog
+          contextId={reportingMessage.id}
+          contextType="dm_message"
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              setReportingMessage(null);
+            }
+          }}
+          onSubmitted={() =>
+            setReportNotice(
+              "Report submitted. Thanks for helping keep ConnectCircle safe.",
+            )
+          }
+          open={Boolean(reportingMessage)}
+          reportedUsername={reportingMessage.fromUsername}
+          subjectLabel={`@${reportingMessage.fromUsername}'s message`}
+        />
+      ) : null}
     </section>
   );
 }
@@ -1052,6 +1102,7 @@ function ChatBubble({
   message,
   onCopyImage,
   onDelete,
+  onReport,
   onStartEdit,
 }: {
   isExpanded: boolean;
@@ -1061,12 +1112,17 @@ function ChatBubble({
   message: ChatMessage;
   onCopyImage: () => void;
   onDelete: () => void;
+  onReport: () => void;
   onStartEdit: () => void;
 }) {
   const bubbleWidthClass = isExpanded
     ? "max-w-[92%] sm:max-w-[34rem] lg:max-w-[44rem]"
     : "max-w-[82%]";
-  const hasActions = Boolean(message.imageAttachment) || isMine;
+  const canReport = !isMine;
+  const hasActions = Boolean(message.imageAttachment) || isMine || canReport;
+  const attachmentKind = message.imageAttachment
+    ? getChatMediaAttachmentKind(message.imageAttachment)
+    : null;
 
   return (
     <div
@@ -1081,7 +1137,19 @@ function ChatBubble({
             : "border border-slate-200 bg-white text-slate-900"
         }`}
       >
-        {message.imageAttachment ? (
+        {message.imageAttachment && attachmentKind === "video" ? (
+          <video
+            aria-label={message.imageAttachment.name}
+            className={`mb-3 block max-w-full rounded-md border ${
+              isExpanded ? "max-h-72" : "max-h-52"
+            } ${isMine ? "border-white/20" : "border-slate-200"}`}
+            controls
+            playsInline
+            preload="metadata"
+            src={message.imageAttachment.dataUrl}
+          />
+        ) : null}
+        {message.imageAttachment && attachmentKind === "image" ? (
           <a
             aria-label={`Open ${message.imageAttachment.name}`}
             className="mb-3 block outline-none focus-visible:ring-2 focus-visible:ring-white/70"
@@ -1119,14 +1187,17 @@ function ChatBubble({
           >
             <MessageActionsMenu
               align={isMine ? "right" : "left"}
-              canCopyImage={Boolean(message.imageAttachment)}
+              canCopyMedia={Boolean(message.imageAttachment)}
               canDelete={isMine}
               canEdit={isMine}
+              canReport={canReport}
               disabled={isMutating}
-              isImageCopied={isImageCopied}
-              onCopyImage={onCopyImage}
+              isMediaCopied={isImageCopied}
+              mediaKind={attachmentKind ?? "image"}
+              onCopyMedia={onCopyImage}
               onDelete={onDelete}
               onEdit={onStartEdit}
+              onReport={onReport}
               surface={isMine ? "mine" : "default"}
             />
           </div>

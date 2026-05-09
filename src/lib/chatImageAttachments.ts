@@ -5,14 +5,50 @@ export const chatImageAttachmentMimeTypes = [
   "image/gif",
 ] as const;
 
+export const chatVideoAttachmentMimeTypes = [
+  "video/mp4",
+  "video/webm",
+  "video/ogg",
+] as const;
+
+export const chatMediaAttachmentMimeTypes = [
+  ...chatImageAttachmentMimeTypes,
+  ...chatVideoAttachmentMimeTypes,
+] as const;
+
 export type ChatImageAttachmentMimeType =
   (typeof chatImageAttachmentMimeTypes)[number];
 
-export type ChatImageAttachment = {
+export type ChatVideoAttachmentMimeType =
+  (typeof chatVideoAttachmentMimeTypes)[number];
+
+export type ChatMediaAttachmentMimeType =
+  (typeof chatMediaAttachmentMimeTypes)[number];
+
+export type ChatMediaAttachmentKind = "image" | "video";
+
+type BaseChatAttachment = {
   dataUrl: string;
+  kind?: ChatMediaAttachmentKind;
   name: string;
   size: number;
+};
+
+export type ChatImageAttachment = BaseChatAttachment & {
+  kind?: "image";
   type: ChatImageAttachmentMimeType;
+};
+
+export type ChatVideoAttachment = BaseChatAttachment & {
+  kind?: "video";
+  type: ChatVideoAttachmentMimeType;
+};
+
+export type ChatMediaAttachment = ChatImageAttachment | ChatVideoAttachment;
+
+type ChatMediaAttachmentValidationResult = {
+  attachment: ChatMediaAttachment | null;
+  error: string;
 };
 
 type ChatImageAttachmentValidationResult = {
@@ -20,19 +56,39 @@ type ChatImageAttachmentValidationResult = {
   error: string;
 };
 
-type ImageAttachmentValidationOptions = {
+type AttachmentValidationOptions = {
   maxBytes?: number | null;
   tooLargeMessage?: string;
 };
 
-function getImageAttachmentDataUrlLimit(maxBytes: number) {
+const chatAttachmentTypeLabel = "JPG, PNG, WebP, GIF, MP4, WebM, or Ogg";
+
+function getAttachmentDataUrlLimit(maxBytes: number) {
   return Math.ceil((maxBytes * 4) / 3) + 100;
 }
 
-function isChatImageAttachmentMimeType(
+function isChatVideoAttachmentMimeType(
   value: string,
-): value is ChatImageAttachmentMimeType {
-  return chatImageAttachmentMimeTypes.some((mimeType) => mimeType === value);
+): value is ChatVideoAttachmentMimeType {
+  return chatVideoAttachmentMimeTypes.some((mimeType) => mimeType === value);
+}
+
+function isChatMediaAttachmentMimeType(
+  value: string,
+): value is ChatMediaAttachmentMimeType {
+  return chatMediaAttachmentMimeTypes.some((mimeType) => mimeType === value);
+}
+
+export function getChatMediaAttachmentKind(
+  attachment: Pick<ChatMediaAttachment, "type">,
+): ChatMediaAttachmentKind {
+  return isChatVideoAttachmentMimeType(attachment.type) ? "video" : "image";
+}
+
+export function isChatVideoAttachment(
+  attachment: Pick<ChatMediaAttachment, "type">,
+) {
+  return getChatMediaAttachmentKind(attachment) === "video";
 }
 
 function getBase64ByteLength(base64Value: string) {
@@ -45,25 +101,21 @@ function getBase64ByteLength(base64Value: string) {
   return Math.floor((base64Value.length * 3) / 4) - padding;
 }
 
-function cleanAttachmentName(name: string) {
+function cleanAttachmentName(name: string, kind: ChatMediaAttachmentKind) {
   const cleanName = name.trim().replace(/\s+/g, " ").slice(0, 96);
 
-  return cleanName || "attached image";
+  return cleanName || (kind === "video" ? "attached video" : "attached image");
 }
 
-export function validateOptionalChatImageAttachment(
+function validateAttachment(
   value: unknown,
-): ChatImageAttachmentValidationResult {
-  return validateImageAttachment(value);
-}
-
-export function validateImageAttachment(
-  value: unknown,
-  options: ImageAttachmentValidationOptions = {},
-): ChatImageAttachmentValidationResult {
+  options: AttachmentValidationOptions,
+  allowedKind: ChatMediaAttachmentKind | "media",
+): ChatMediaAttachmentValidationResult {
   const maxBytes = options.maxBytes ?? null;
   const hasMaxBytes = typeof maxBytes === "number";
-  const tooLargeMessage = options.tooLargeMessage ?? "Image is too large.";
+  const tooLargeMessage =
+    options.tooLargeMessage ?? "Attachment is too large.";
 
   if (value === undefined || value === null) {
     return {
@@ -75,11 +127,11 @@ export function validateImageAttachment(
   if (!value || typeof value !== "object") {
     return {
       attachment: null,
-      error: "Image attachment is invalid.",
+      error: "Attachment is invalid.",
     };
   }
 
-  const attachment = value as Partial<ChatImageAttachment>;
+  const attachment = value as Partial<ChatMediaAttachment>;
 
   if (
     typeof attachment.dataUrl !== "string" ||
@@ -89,14 +141,26 @@ export function validateImageAttachment(
   ) {
     return {
       attachment: null,
-      error: "Image attachment is invalid.",
+      error: "Attachment is invalid.",
     };
   }
 
-  if (!isChatImageAttachmentMimeType(attachment.type)) {
+  if (!isChatMediaAttachmentMimeType(attachment.type)) {
     return {
       attachment: null,
-      error: "Choose a JPG, PNG, WebP, or GIF image.",
+      error: `Choose a ${chatAttachmentTypeLabel} file.`,
+    };
+  }
+
+  const kind = getChatMediaAttachmentKind({ type: attachment.type });
+
+  if (allowedKind !== "media" && kind !== allowedKind) {
+    return {
+      attachment: null,
+      error:
+        allowedKind === "image"
+          ? "Choose a JPG, PNG, WebP, or GIF image."
+          : "Choose an MP4, WebM, or Ogg video.",
     };
   }
 
@@ -113,7 +177,7 @@ export function validateImageAttachment(
 
   if (
     hasMaxBytes &&
-    attachment.dataUrl.length > getImageAttachmentDataUrlLimit(maxBytes)
+    attachment.dataUrl.length > getAttachmentDataUrlLimit(maxBytes)
   ) {
     return {
       attachment: null,
@@ -122,13 +186,13 @@ export function validateImageAttachment(
   }
 
   const dataUrlMatch = attachment.dataUrl.match(
-    /^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/u,
+    /^data:((?:image\/(?:jpeg|png|webp|gif))|(?:video\/(?:mp4|webm|ogg)));base64,([A-Za-z0-9+/=]+)$/u,
   );
 
   if (!dataUrlMatch || dataUrlMatch[1] !== attachment.type) {
     return {
       attachment: null,
-      error: "Image attachment is invalid.",
+      error: "Attachment is invalid.",
     };
   }
 
@@ -144,12 +208,50 @@ export function validateImageAttachment(
   return {
     attachment: {
       dataUrl: attachment.dataUrl,
-      name: cleanAttachmentName(attachment.name),
+      kind,
+      name: cleanAttachmentName(attachment.name, kind),
       size: decodedSize,
       type: attachment.type,
-    },
+    } as ChatMediaAttachment,
     error: "",
   };
+}
+
+export function validateOptionalChatMediaAttachment(
+  value: unknown,
+): ChatMediaAttachmentValidationResult {
+  return validateMediaAttachment(value);
+}
+
+export function validateOptionalChatImageAttachment(
+  value: unknown,
+): ChatImageAttachmentValidationResult {
+  return validateImageAttachment(value);
+}
+
+export function validateMediaAttachment(
+  value: unknown,
+  options: AttachmentValidationOptions = {},
+): ChatMediaAttachmentValidationResult {
+  return validateAttachment(value, options, "media");
+}
+
+export function validateImageAttachment(
+  value: unknown,
+  options: AttachmentValidationOptions = {},
+): ChatImageAttachmentValidationResult {
+  const validation = validateAttachment(value, options, "image");
+
+  return {
+    attachment: validation.attachment as ChatImageAttachment | null,
+    error: validation.error,
+  };
+}
+
+export function isChatMediaAttachment(
+  value: unknown,
+): value is ChatMediaAttachment {
+  return !validateOptionalChatMediaAttachment(value).error && value != null;
 }
 
 export function isChatImageAttachment(

@@ -182,9 +182,13 @@ export async function getConnectionSummary(
         (first, second) =>
           new Date(second.createdAt).getTime() -
           new Date(first.createdAt).getTime(),
-      ),
+    ),
     blockedUsers: data.blocks
-      .filter((block) => areSameUser(block.blockerUsername, normalizedUsername))
+      .filter(
+        (block) =>
+          areSameUser(block.blockerUsername, normalizedUsername) &&
+          !block.removedFromListAt,
+      )
       .sort(
         (first, second) =>
           new Date(second.createdAt).getTime() -
@@ -529,6 +533,44 @@ export async function unblockUser(
   return { error: "" };
 }
 
+export async function removeBlockedUser(
+  username: string,
+  blockedUsername: string,
+): Promise<ConnectionMutationResult> {
+  const data = await readConnectionData();
+  let didUpdateBlock = false;
+
+  const nextBlocks = data.blocks.map((block) => {
+    if (
+      areSameUser(block.blockerUsername, username) &&
+      areSameUser(block.blockedUsername, blockedUsername) &&
+      !block.removedFromListAt
+    ) {
+      didUpdateBlock = true;
+
+      return {
+        ...block,
+        removedFromListAt: new Date().toISOString(),
+      };
+    }
+
+    return block;
+  });
+
+  if (!didUpdateBlock) {
+    return {
+      error: "This user is not in your blocked users list.",
+    };
+  }
+
+  await writeConnectionData({
+    ...data,
+    blocks: nextBlocks,
+  });
+
+  return { error: "" };
+}
+
 function isConnectionData(value: unknown): value is StoredConnectionData {
   if (!value || typeof value !== "object") {
     return false;
@@ -586,6 +628,8 @@ function isBlockedConnection(value: unknown): value is BlockedConnection {
     typeof block.id === "string" &&
     typeof block.blockerUsername === "string" &&
     typeof block.blockedUsername === "string" &&
-    typeof block.createdAt === "string"
+    typeof block.createdAt === "string" &&
+    (typeof block.removedFromListAt === "undefined" ||
+      typeof block.removedFromListAt === "string")
   );
 }

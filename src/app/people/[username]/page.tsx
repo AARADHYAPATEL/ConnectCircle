@@ -174,6 +174,7 @@ export default async function PersonProfilePage({
     relationshipSummary.relationship,
     profileUser.username,
   );
+  const reportHref = `/people/${encodeURIComponent(profileUser.username)}/report`;
 
   return (
     <main className="min-h-screen">
@@ -228,6 +229,9 @@ export default async function PersonProfilePage({
               </Link>
               <Link className="btn btn-secondary" href="/social">
                 Social home
+              </Link>
+              <Link className="btn btn-secondary" href={reportHref}>
+                Report user
               </Link>
             </div>
           </article>

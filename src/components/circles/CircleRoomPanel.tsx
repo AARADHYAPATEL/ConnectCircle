@@ -11,12 +11,16 @@ import {
 import { EmojiPicker } from "@/components/chat/EmojiPicker";
 import {
   ChatImageAttachmentInput,
-  copyChatImageAttachmentToClipboard,
-  createChatImageAttachmentFromFile,
-  getClipboardImageFile,
+  copyChatMediaAttachmentToClipboard,
+  createChatMediaAttachmentFromFile,
+  getClipboardMediaFile,
 } from "@/components/chat/ChatImageAttachmentInput";
 import { MessageActionsMenu } from "@/components/chat/MessageActionsMenu";
-import type { ChatImageAttachment } from "@/lib/chatImageAttachments";
+import { ReportUserDialog } from "@/components/reports/ReportUserButton";
+import {
+  getChatMediaAttachmentKind,
+  type ChatMediaAttachment,
+} from "@/lib/chatImageAttachments";
 import {
   circleMessageLimit,
   type CircleChatThread,
@@ -152,19 +156,22 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
   const [onlineUsernames, setOnlineUsernames] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [selectedImageAttachment, setSelectedImageAttachment] =
-    useState<ChatImageAttachment | null>(null);
+    useState<ChatMediaAttachment | null>(null);
   const [composerCursorPosition, setComposerCursorPosition] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingMessageText, setEditingMessageText] = useState("");
   const [editingImageAttachment, setEditingImageAttachment] =
-    useState<ChatImageAttachment | null>(null);
+    useState<ChatMediaAttachment | null>(null);
   const [mutatingMessageId, setMutatingMessageId] = useState<string | null>(
     null,
   );
   const [isManagingCircle, setIsManagingCircle] = useState(false);
   const [roomError, setRoomError] = useState("");
+  const [reportNotice, setReportNotice] = useState("");
+  const [reportingMessage, setReportingMessage] =
+    useState<CircleMessage | null>(null);
   const [copiedImageMessageId, setCopiedImageMessageId] = useState<
     string | null
   >(null);
@@ -346,6 +353,7 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
 
     setIsSending(true);
     setRoomError("");
+    setReportNotice("");
 
     try {
       const response = await fetch("/api/circles/chat", {
@@ -387,16 +395,16 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
   async function handleComposerPaste(
     event: ClipboardEvent<HTMLTextAreaElement>,
   ) {
-    const imageFile = getClipboardImageFile(event.clipboardData);
+    const mediaFile = getClipboardMediaFile(event.clipboardData);
 
-    if (!imageFile) {
+    if (!mediaFile) {
       return;
     }
 
     event.preventDefault();
 
     try {
-      const attachment = await createChatImageAttachmentFromFile(imageFile);
+      const attachment = await createChatMediaAttachmentFromFile(mediaFile);
 
       setSelectedImageAttachment(attachment);
       setRoomError("");
@@ -404,7 +412,7 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
       setRoomError(
         pasteError instanceof Error
           ? pasteError.message
-          : "Image could not be attached.",
+          : "Attachment could not be attached.",
       );
     }
   }
@@ -460,16 +468,16 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
   async function handleEditComposerPaste(
     event: ClipboardEvent<HTMLTextAreaElement>,
   ) {
-    const imageFile = getClipboardImageFile(event.clipboardData);
+    const mediaFile = getClipboardMediaFile(event.clipboardData);
 
-    if (!imageFile) {
+    if (!mediaFile) {
       return;
     }
 
     event.preventDefault();
 
     try {
-      const attachment = await createChatImageAttachmentFromFile(imageFile);
+      const attachment = await createChatMediaAttachmentFromFile(mediaFile);
 
       setEditingImageAttachment(attachment);
       setRoomError("");
@@ -477,7 +485,7 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
       setRoomError(
         pasteError instanceof Error
           ? pasteError.message
-          : "Image could not be attached.",
+          : "Attachment could not be attached.",
       );
     }
   }
@@ -542,6 +550,7 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
 
     setMutatingMessageId(messageId);
     setRoomError("");
+    setReportNotice("");
 
     try {
       const response = await fetch("/api/circles/chat", {
@@ -582,6 +591,7 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
 
     setMutatingMessageId(circleMessage.id);
     setRoomError("");
+    setReportNotice("");
 
     try {
       const response = await fetch("/api/circles/chat", {
@@ -618,9 +628,10 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
     }
 
     setRoomError("");
+    setReportNotice("");
 
     try {
-      await copyChatImageAttachmentToClipboard(circleMessage.imageAttachment);
+      await copyChatMediaAttachmentToClipboard(circleMessage.imageAttachment);
       setCopiedImageMessageId(circleMessage.id);
 
       if (copyImageResetTimeoutRef.current) {
@@ -636,7 +647,7 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
       setRoomError(
         copyError instanceof Error
           ? copyError.message
-          : "Image could not be copied.",
+          : "Attachment could not be copied.",
       );
     }
   }
@@ -659,6 +670,7 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
 
     setIsManagingCircle(true);
     setRoomError("");
+    setReportNotice("");
 
     try {
       const response = await fetch("/api/circles/manage", {
@@ -748,6 +760,11 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
       {roomError ? (
         <p className="mb-5 rounded-md border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-900">
           {roomError}
+        </p>
+      ) : null}
+      {reportNotice ? (
+        <p className="mb-5 rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">
+          {reportNotice}
         </p>
       ) : null}
 
@@ -904,6 +921,10 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
                   message={circleMessage}
                   onCopyImage={() => void handleCopyMessageImage(circleMessage)}
                   onDelete={() => void handleDeleteMessage(circleMessage)}
+                  onReport={() => {
+                    setReportNotice("");
+                    setReportingMessage(circleMessage);
+                  }}
                   onStartEdit={() => startEditingMessage(circleMessage)}
                 />
               ))}
@@ -923,7 +944,12 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
                       <p className="mt-1 truncate text-sm font-semibold text-slate-700">
                         {editingMessage.message
                           ? renderEmojiShortcodes(editingMessage.message)
-                          : "Photo"}
+                          : editingMessage.imageAttachment &&
+                              getChatMediaAttachmentKind(
+                                editingMessage.imageAttachment,
+                              ) === "video"
+                            ? "Video"
+                            : "Photo"}
                       </p>
                     </div>
                     <button
@@ -1165,6 +1191,25 @@ export function CircleRoomPanel({ circleId, username }: CircleRoomPanelProps) {
           </div>
         </aside>
       </div>
+      {reportingMessage ? (
+        <ReportUserDialog
+          contextId={reportingMessage.id}
+          contextType="circle_message"
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              setReportingMessage(null);
+            }
+          }}
+          onSubmitted={() =>
+            setReportNotice(
+              "Report submitted. Thanks for helping keep ConnectCircle safe.",
+            )
+          }
+          open={Boolean(reportingMessage)}
+          reportedUsername={reportingMessage.fromUsername}
+          subjectLabel={`@${reportingMessage.fromUsername}'s CircleChat message`}
+        />
+      ) : null}
     </section>
   );
 }
@@ -1319,6 +1364,7 @@ function CircleChatBubble({
   message,
   onCopyImage,
   onDelete,
+  onReport,
   onStartEdit,
 }: {
   isExpanded: boolean;
@@ -1328,12 +1374,17 @@ function CircleChatBubble({
   message: CircleMessage;
   onCopyImage: () => void;
   onDelete: () => void;
+  onReport: () => void;
   onStartEdit: () => void;
 }) {
   const bubbleWidthClass = isExpanded
     ? "max-w-[92%] sm:max-w-[34rem] lg:max-w-[44rem]"
     : "max-w-[88%]";
-  const hasActions = Boolean(message.imageAttachment) || isMine;
+  const canReport = !isMine;
+  const hasActions = Boolean(message.imageAttachment) || isMine || canReport;
+  const attachmentKind = message.imageAttachment
+    ? getChatMediaAttachmentKind(message.imageAttachment)
+    : null;
 
   return (
     <div
@@ -1353,7 +1404,19 @@ function CircleChatBubble({
             @{message.fromUsername}
           </p>
         ) : null}
-        {message.imageAttachment ? (
+        {message.imageAttachment && attachmentKind === "video" ? (
+          <video
+            aria-label={message.imageAttachment.name}
+            className={`mb-3 block max-w-full rounded-md border ${
+              isExpanded ? "max-h-72" : "max-h-52"
+            } ${isMine ? "border-white/20" : "border-slate-200"}`}
+            controls
+            playsInline
+            preload="metadata"
+            src={message.imageAttachment.dataUrl}
+          />
+        ) : null}
+        {message.imageAttachment && attachmentKind === "image" ? (
           <a
             aria-label={`Open ${message.imageAttachment.name}`}
             className="mb-3 block outline-none focus-visible:ring-2 focus-visible:ring-white/70"
@@ -1391,14 +1454,17 @@ function CircleChatBubble({
           >
             <MessageActionsMenu
               align={isMine ? "right" : "left"}
-              canCopyImage={Boolean(message.imageAttachment)}
+              canCopyMedia={Boolean(message.imageAttachment)}
               canDelete={isMine}
               canEdit={isMine}
+              canReport={canReport}
               disabled={isMutating}
-              isImageCopied={isImageCopied}
-              onCopyImage={onCopyImage}
+              isMediaCopied={isImageCopied}
+              mediaKind={attachmentKind ?? "image"}
+              onCopyMedia={onCopyImage}
               onDelete={onDelete}
               onEdit={onStartEdit}
+              onReport={onReport}
               surface={isMine ? "mine" : "default"}
             />
           </div>
