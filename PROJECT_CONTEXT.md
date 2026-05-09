@@ -126,6 +126,8 @@ Supports:
 - Google account creation/sign-in
 - Separate admin authentication for the safety review area
 
+Student user accounts use durable Postgres storage when `DATABASE_URL` or `POSTGRES_URL` is configured, with `.data/users.json` kept as a local-development fallback. Production/Vercel should set `CONNECTCIRCLE_REQUIRE_DATABASE=true` so the app fails closed instead of silently writing user accounts to local files. Password accounts are stored as salted scrypt hashes with versioned password algorithm metadata; legacy local hashes are still accepted and upgraded after successful login. Student password login attempts are throttled after repeated failures.
+
 Do not assume the auth library until checking the project files.
 
 ## Codex Instructions
@@ -138,10 +140,10 @@ Before modifying code:
 
 ## Current Development State
 Fill in:
-- Current task: Added a separate admin safety review area with secured admin login, report list/detail pages, report status updates, internal resolution notes, and downloadable text reports.
-- Recently changed files: Admin store/session helpers; admin login/logout/report APIs; admin login, report list, and report detail pages; admin header/logout/status components; report store review/download helpers; environment example; project context.
-- Known bugs: None known from this pass. Lint passes with existing Next.js `<img>` warnings in chat image previews; production build passes.
-- Next steps: Set `CONNECTCIRCLE_ADMIN_USERNAME`, `CONNECTCIRCLE_ADMIN_PASSWORD`, and `CONNECTCIRCLE_ADMIN_SESSION_SECRET` in `.env.local`, then browser-test `/admin/login`, report downloads, and status updates with real submitted reports.
+- Current task: Started Vercel production readiness by moving student user/password storage behind durable Postgres when configured, while keeping local JSON fallback for development.
+- Recently changed files: User account type/store helpers; auth store password hashing/storage path; Postgres users schema; local user migration script; production auth storage guide; package dependencies/scripts; environment example; project context.
+- Known bugs: None known from this pass yet; lint/build still need to be rerun after the auth storage migration.
+- Next steps: Configure a Vercel Marketplace Postgres database, set `DATABASE_URL` or `POSTGRES_URL`, run `npm run migrate:users`, then migrate remaining `.data` stores before real production.
 
 ## File Map
 Fill in after scanning repo:

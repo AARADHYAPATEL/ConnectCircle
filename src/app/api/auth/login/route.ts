@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyUser } from "@/lib/authStore";
+import { verifyUserCredentials } from "@/lib/authStore";
 import { setSessionCookie } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -14,17 +14,17 @@ export async function POST(request: Request) {
   const input = body as Record<string, unknown>;
   const email = typeof input.email === "string" ? input.email : "";
   const password = typeof input.password === "string" ? input.password : "";
-  const user = await verifyUser(email, password);
+  const result = await verifyUserCredentials(email, password);
 
-  if (!user) {
+  if (!result.user) {
     return NextResponse.json(
-      { error: "Email or password is incorrect." },
-      { status: 401 },
+      { error: result.error },
+      { status: result.status },
     );
   }
 
-  const response = NextResponse.json({ user });
-  setSessionCookie(response, user);
+  const response = NextResponse.json({ user: result.user });
+  setSessionCookie(response, result.user);
 
   return response;
 }

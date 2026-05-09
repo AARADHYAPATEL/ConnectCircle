@@ -6,10 +6,12 @@
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "migrate:users": "node scripts/migrate-users-to-postgres.mjs"
   },
   "dependencies": {
     "next": "latest",
+    "pg": "^8.20.0",
     "react": "latest",
     "react-dom": "latest"
   },
@@ -17,11 +19,15 @@
     "@eslint/eslintrc": "latest",
     "@tailwindcss/postcss": "latest",
     "@types/node": "latest",
+    "@types/pg": "^8.20.0",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "eslint": "latest",
     "eslint-config-next": "latest",
     "tailwindcss": "latest",
     "typescript": "latest"
+  },
+  "overrides": {
+    "postcss": "^8.5.10"
   }
 }

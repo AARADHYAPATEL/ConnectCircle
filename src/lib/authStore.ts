@@ -1,12 +1,9 @@
-import { promises as fs } from "node:fs";
 import {
   randomBytes,
   randomUUID,
   scrypt as scryptCallback,
   timingSafeEqual,
 } from "node:crypto";
-import path from "node:path";
-import { promisify } from "node:util";
 import {
   availabilityStatusOptions,
   profileAvatarImageDataUrlLimit,
@@ -20,41 +17,37 @@ import {
   type ProfileVisibility,
   type ThemePreference,
 } from "@/lib/profileTypes";
+import {
+  findUserAccountByEmail,
+  findUserAccountByGoogleSub,
+  findUserAccountById,
+  findUserAccountByUsernameKey,
+  getAllUserAccounts,
+  clearUserLoginFailures,
+  getUserLoginLockedError,
+  insertUserAccount,
+  recordUserLoginFailure,
+  searchUserAccountsByUsername,
+  updateUserAccount,
+} from "@/lib/userAccountStore";
+import type { PublicUser, UserAccount } from "@/lib/userAccountTypes";
 
-const scrypt = promisify(scryptCallback);
-const dataDirectory = path.join(process.cwd(), ".data");
-const usersFile = path.join(dataDirectory, "users.json");
+export type { PublicUser, UserAccount } from "@/lib/userAccountTypes";
 
-export type UserAccount = {
-  id: string;
-  username: string;
-  email: string;
-  displayName?: string;
-  bio?: string;
-  avatarImage?: string;
-  avatarUrl?: string;
-  profileVisibility?: ProfileVisibility;
-  availabilityStatus?: AvailabilityStatus;
-  themePreference?: ThemePreference;
-  passwordHash?: string;
-  passwordSalt?: string;
-  googleSub?: string;
-  authProviders?: Array<"password" | "google">;
-  createdAt: string;
+const currentPasswordAlgorithm = "scrypt:N=131072:r=8:p=1:keylen=64";
+const legacyPasswordAlgorithm = "scrypt:legacy-node-defaults:keylen=64";
+const passwordSaltBytes = 32;
+const passwordMaxLength = 128;
+
+type ScryptParameters = {
+  N?: number;
+  keylen: number;
+  maxmem?: number;
+  p?: number;
+  r?: number;
 };
 
-export type PublicUser = {
-  id: string;
-  username: string;
-  email: string;
-  displayName: string;
-  bio: string;
-  avatarImage: string;
-  profileVisibility: ProfileVisibility;
-  availabilityStatus: AvailabilityStatus;
-  themePreference: ThemePreference;
-  createdAt: string;
-};
+type ScryptOptions = Omit<ScryptParameters, "keylen">;
 
 type CreateUserInput = {
   username: string;
@@ -78,6 +71,12 @@ type UpdateProfileInput = {
 type UpdatePreferencesInput = {
   availabilityStatus: AvailabilityStatus;
   themePreference: ThemePreference;
+};
+
+type VerifyUserResult = {
+  error: string;
+  status: number;
+  user: PublicUser | null;
 };
 
 function toPublicUser(user: UserAccount): PublicUser {
@@ -162,37 +161,69 @@ function slugifyUsername(value: string) {
   return slug || "connect_user";
 }
 
-async function hashPassword(password: string, salt: string) {
-  const derivedKey = (await scrypt(password, salt, 64)) as Buffer;
+function getPasswordAlgorithmParameters(
+  algorithm: string | undefined,
+): ScryptParameters {
+  if (algorithm === currentPasswordAlgorithm) {
+    return {
+      N: 131072,
+      keylen: 64,
+      maxmem: 160 * 1024 * 1024,
+      p: 1,
+      r: 8,
+    };
+  }
+
+  return {
+    keylen: 64,
+  };
+}
+
+async function hashPassword(
+  password: string,
+  salt: string,
+  algorithm = currentPasswordAlgorithm,
+) {
+  const { keylen, ...options } = getPasswordAlgorithmParameters(algorithm);
+  const derivedKey =
+    algorithm === legacyPasswordAlgorithm
+      ? await runScrypt(password, salt, keylen)
+      : await runScrypt(password, salt, keylen, options);
 
   return derivedKey.toString("hex");
 }
 
-async function readUsers() {
-  try {
-    const file = await fs.readFile(usersFile, "utf8");
-    const parsed: unknown = JSON.parse(file);
+function runScrypt(
+  password: string,
+  salt: string,
+  keylen: number,
+  options?: ScryptOptions,
+) {
+  return new Promise<Buffer>((resolve, reject) => {
+    scryptCallback(password, salt, keylen, options ?? {}, (error, derivedKey) => {
+      if (error) {
+        reject(error);
+        return;
+      }
 
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed.filter(isUserAccount);
-  } catch (error) {
-    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-      return [];
-    }
-
-    throw error;
-  }
+      resolve(derivedKey);
+    });
+  });
 }
 
-async function writeUsers(users: UserAccount[]) {
-  await fs.mkdir(dataDirectory, { recursive: true });
+async function createPasswordCredential(password: string) {
+  const passwordSalt = randomBytes(passwordSaltBytes).toString("hex");
+  const passwordHash = await hashPassword(
+    password,
+    passwordSalt,
+    currentPasswordAlgorithm,
+  );
 
-  const temporaryFile = `${usersFile}.tmp`;
-  await fs.writeFile(temporaryFile, JSON.stringify(users, null, 2), "utf8");
-  await fs.rename(temporaryFile, usersFile);
+  return {
+    passwordAlgorithm: currentPasswordAlgorithm,
+    passwordHash,
+    passwordSalt,
+  };
 }
 
 export async function createUser({ username, email, password }: CreateUserInput) {
@@ -221,33 +252,28 @@ export async function createUser({ username, email, password }: CreateUserInput)
     };
   }
 
-  if (password.length < 8) {
+  if (password.length < 8 || password.length > passwordMaxLength) {
     return {
-      error: "Password must be at least 8 characters.",
+      error: `Password must be between 8 and ${passwordMaxLength} characters.`,
       user: null,
     };
   }
 
-  const users = await readUsers();
-
-  if (users.some((user) => user.email === cleanEmail)) {
+  if (await findUserAccountByEmail(cleanEmail)) {
     return {
       error: "An account with this email already exists.",
       user: null,
     };
   }
 
-  if (
-    users.some((user) => normalizeUsernameKey(user.username) === cleanUsernameKey)
-  ) {
+  if (await findUserAccountByUsernameKey(cleanUsernameKey)) {
     return {
       error: "This username is already taken.",
       user: null,
     };
   }
 
-  const passwordSalt = randomBytes(16).toString("hex");
-  const passwordHash = await hashPassword(password, passwordSalt);
+  const passwordCredential = await createPasswordCredential(password);
   const user: UserAccount = {
     id: randomUUID(),
     username: cleanUsername,
@@ -256,13 +282,23 @@ export async function createUser({ username, email, password }: CreateUserInput)
     profileVisibility: "friends",
     availabilityStatus: "open",
     themePreference: "system",
-    passwordHash,
-    passwordSalt,
+    ...passwordCredential,
     authProviders: ["password"],
     createdAt: new Date().toISOString(),
   };
 
-  await writeUsers([...users, user]);
+  try {
+    await insertUserAccount(user);
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return {
+        error: "An account with this email or username already exists.",
+        user: null,
+      };
+    }
+
+    throw error;
+  }
 
   return {
     error: "",
@@ -270,16 +306,49 @@ export async function createUser({ username, email, password }: CreateUserInput)
   };
 }
 
-export async function verifyUser(email: string, password: string) {
+export async function verifyUserCredentials(
+  email: string,
+  password: string,
+): Promise<VerifyUserResult> {
   const cleanEmail = normalizeEmail(email);
-  const users = await readUsers();
-  const user = users.find((currentUser) => currentUser.email === cleanEmail);
 
-  if (!user?.passwordHash || !user.passwordSalt) {
-    return null;
+  if (!cleanEmail || !password) {
+    return {
+      error: "Enter your email and password.",
+      status: 400,
+      user: null,
+    };
   }
 
-  const attemptedHash = await hashPassword(password, user.passwordSalt);
+  const lockedError = await getUserLoginLockedError(cleanEmail);
+
+  if (lockedError) {
+    return {
+      error: lockedError,
+      status: 429,
+      user: null,
+    };
+  }
+
+  const user = await findUserAccountByEmail(cleanEmail);
+  const genericError = "Email or password is incorrect.";
+
+  if (!user?.passwordHash || !user.passwordSalt) {
+    await recordUserLoginFailure(cleanEmail);
+
+    return {
+      error: genericError,
+      status: 401,
+      user: null,
+    };
+  }
+
+  const passwordAlgorithm = user.passwordAlgorithm ?? legacyPasswordAlgorithm;
+  const attemptedHash = await hashPassword(
+    password,
+    user.passwordSalt,
+    passwordAlgorithm,
+  );
   const savedHash = Buffer.from(user.passwordHash, "hex");
   const attemptedHashBuffer = Buffer.from(attemptedHash, "hex");
 
@@ -287,22 +356,44 @@ export async function verifyUser(email: string, password: string) {
     savedHash.length !== attemptedHashBuffer.length ||
     !timingSafeEqual(savedHash, attemptedHashBuffer)
   ) {
-    return null;
+    await recordUserLoginFailure(cleanEmail);
+
+    return {
+      error: genericError,
+      status: 401,
+      user: null,
+    };
   }
 
-  return toPublicUser(user);
+  await clearUserLoginFailures(cleanEmail);
+
+  if (passwordAlgorithm !== currentPasswordAlgorithm) {
+    await updateUserAccount({
+      ...user,
+      ...(await createPasswordCredential(password)),
+    });
+  }
+
+  return {
+    error: "",
+    status: 200,
+    user: toPublicUser(user),
+  };
+}
+
+export async function verifyUser(email: string, password: string) {
+  return (await verifyUserCredentials(email, password)).user;
 }
 
 export async function findOrCreateGoogleUser({ email, name, sub }: GoogleUserInput) {
   const cleanEmail = normalizeEmail(email);
-  const users = await readUsers();
-  const existingGoogleUser = users.find((user) => user.googleSub === sub);
+  const existingGoogleUser = await findUserAccountByGoogleSub(sub);
 
   if (existingGoogleUser) {
     return toPublicUser(existingGoogleUser);
   }
 
-  const existingEmailUser = users.find((user) => user.email === cleanEmail);
+  const existingEmailUser = await findUserAccountByEmail(cleanEmail);
 
   if (existingEmailUser) {
     const linkedUser: UserAccount = {
@@ -312,15 +403,13 @@ export async function findOrCreateGoogleUser({ email, name, sub }: GoogleUserInp
         new Set([...(existingEmailUser.authProviders ?? ["password"]), "google"]),
       ),
     };
-    const nextUsers = users.map((user) =>
-      user.id === linkedUser.id ? linkedUser : user,
-    );
 
-    await writeUsers(nextUsers);
+    await updateUserAccount(linkedUser);
 
     return toPublicUser(linkedUser);
   }
 
+  const users = await getAllUserAccounts();
   const username = createUniqueUsername(name || cleanEmail.split("@")[0], users);
   const user: UserAccount = {
     id: randomUUID(),
@@ -335,24 +424,20 @@ export async function findOrCreateGoogleUser({ email, name, sub }: GoogleUserInp
     createdAt: new Date().toISOString(),
   };
 
-  await writeUsers([...users, user]);
+  await insertUserAccount(user);
 
   return toPublicUser(user);
 }
 
 export async function getUserById(userId: string) {
-  const users = await readUsers();
-  const user = users.find((currentUser) => currentUser.id === userId);
+  const user = await findUserAccountById(userId);
 
   return user ? toPublicUser(user) : null;
 }
 
 export async function getUserByUsername(username: string) {
   const cleanUsernameKey = normalizeUsernameKey(username);
-  const users = await readUsers();
-  const user = users.find(
-    (currentUser) => normalizeUsernameKey(currentUser.username) === cleanUsernameKey,
-  );
+  const user = await findUserAccountByUsernameKey(cleanUsernameKey);
 
   return user ? toPublicUser(user) : null;
 }
@@ -361,8 +446,7 @@ export async function updateUserProfile(
   userId: string,
   { avatarImage, bio, displayName, profileVisibility }: UpdateProfileInput,
 ) {
-  const users = await readUsers();
-  const existingUser = users.find((user) => user.id === userId);
+  const existingUser = await findUserAccountById(userId);
 
   if (!existingUser) {
     return {
@@ -411,9 +495,7 @@ export async function updateUserProfile(
     profileVisibility: cleanProfileVisibility,
   };
 
-  await writeUsers(
-    users.map((user) => (user.id === userId ? updatedUser : user)),
-  );
+  await updateUserAccount(updatedUser);
 
   return {
     error: "",
@@ -425,8 +507,7 @@ export async function updateUserPreferences(
   userId: string,
   { availabilityStatus, themePreference }: UpdatePreferencesInput,
 ) {
-  const users = await readUsers();
-  const existingUser = users.find((user) => user.id === userId);
+  const existingUser = await findUserAccountById(userId);
 
   if (!existingUser) {
     return {
@@ -443,9 +524,7 @@ export async function updateUserPreferences(
     themePreference: cleanThemePreference,
   };
 
-  await writeUsers(
-    users.map((user) => (user.id === userId ? updatedUser : user)),
-  );
+  await updateUserAccount(updatedUser);
 
   return {
     error: "",
@@ -497,47 +576,18 @@ export async function searchUsersByUsername(query: string, options?: {
     return [];
   }
 
-  const users = await readUsers();
   const excludeUsernameKey = options?.excludeUsername
     ? normalizeUsernameKey(options.excludeUsername)
     : "";
   const limit = options?.limit ?? 8;
 
-  return users
-    .filter((user) => {
-      const usernameKey = normalizeUsernameKey(user.username);
-
-      return usernameKey !== excludeUsernameKey && usernameKey.includes(cleanQuery);
-    })
-    .sort((first, second) => {
-      const firstUsername = normalizeUsernameKey(first.username);
-      const secondUsername = normalizeUsernameKey(second.username);
-      const firstStartsWithQuery = firstUsername.startsWith(cleanQuery);
-      const secondStartsWithQuery = secondUsername.startsWith(cleanQuery);
-
-      if (firstStartsWithQuery !== secondStartsWithQuery) {
-        return firstStartsWithQuery ? -1 : 1;
-      }
-
-      return firstUsername.localeCompare(secondUsername);
-    })
-    .slice(0, limit)
-    .map(toPublicUser);
-}
-
-function isUserAccount(value: unknown): value is UserAccount {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const user = value as Partial<UserAccount>;
-
   return (
-    typeof user.id === "string" &&
-    typeof user.username === "string" &&
-    typeof user.email === "string" &&
-    typeof user.createdAt === "string"
-  );
+    await searchUserAccountsByUsername({
+      excludeUsernameKey,
+      limit,
+      query: cleanQuery,
+    })
+  ).map(toPublicUser);
 }
 
 function createUniqueUsername(value: string, users: UserAccount[]) {
@@ -560,4 +610,13 @@ function createUniqueUsername(value: string, users: UserAccount[]) {
   }
 
   return `user_${randomUUID().slice(0, 8)}`;
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "23505"
+  );
 }

@@ -8,24 +8,11 @@
       <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/PROJECT_CONTEXT.md" beforeDir="false" afterPath="$PROJECT_DIR$/PROJECT_CONTEXT.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cloudflared-20260504-084243.err.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/cloudflared-20260504-084243.out.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/chat/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/chat/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/circles/chat/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/circles/chat/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/connections/manage/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/connections/manage/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/people/[username]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/people/[username]/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/chat/ChatImageAttachmentInput.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/chat/ChatImageAttachmentInput.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/chat/MessageActionsMenu.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/chat/MessageActionsMenu.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/circles/CircleRoomPanel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/circles/CircleRoomPanel.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/social/ChatPanel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/social/ChatPanel.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/social/ConnectionsPanel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/social/ConnectionsPanel.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/chatImageAttachments.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/chatImageAttachments.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/chatStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/chatStore.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/chatTypes.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/chatTypes.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/circleStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/circleStore.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/circleTypes.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/circleTypes.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/connectionStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/connectionStore.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/connectionTypes.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/connectionTypes.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cloudflared-20260508-212717.err.log" beforeDir="false" afterPath="$PROJECT_DIR$/cloudflared-20260508-212717.err.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/auth/login/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/auth/login/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/authStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/authStore.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -60,6 +47,7 @@
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="Git.Settings">
+    <option name="PUSH_AUTO_UPDATE" value="true" />
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="GitHubPullRequestSearchHistory">{
@@ -156,7 +144,7 @@
       <workItem from="1777864546528" duration="4600000" />
       <workItem from="1778227442437" duration="8802000" />
       <workItem from="1778299657976" duration="819000" />
-      <workItem from="1778313750706" duration="239000" />
+      <workItem from="1778313750706" duration="2647000" />
     </task>
     <task id="LOCAL-00001" summary="This is ConnectCircle, where students can share their mood, send supportive messages to friends and build stronger peer relationships.">
       <option name="closed" value="true" />
@@ -206,7 +194,15 @@
       <option name="project" value="LOCAL" />
       <updated>1777875321158</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="Major updates and bug fixes.">
+      <option name="closed" value="true" />
+      <created>1778314045133</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1778314045133</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
