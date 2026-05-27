@@ -70,6 +70,30 @@ function getPostgresConnectionString() {
   );
 }
 
+function normalizePostgresSslMode(connectionString: string) {
+  if (!connectionString) {
+    return connectionString;
+  }
+
+  try {
+    const url = new URL(connectionString);
+    const sslMode = url.searchParams.get("sslmode");
+
+    if (
+      sslMode === "prefer" ||
+      sslMode === "require" ||
+      sslMode === "verify-ca"
+    ) {
+      url.searchParams.set("sslmode", "verify-full");
+      return url.toString();
+    }
+  } catch {
+    return connectionString;
+  }
+
+  return connectionString;
+}
+
 function shouldUsePostgres() {
   return Boolean(getPostgresConnectionString());
 }
@@ -87,7 +111,9 @@ function assertProductionUserStoreConfigured() {
 }
 
 function getPool() {
-  const connectionString = getPostgresConnectionString();
+  const connectionString = normalizePostgresSslMode(
+    getPostgresConnectionString(),
+  );
 
   if (!connectionString) {
     throw new Error("Postgres connection string is not configured.");

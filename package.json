@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "migrate:users": "node scripts/migrate-users-to-postgres.mjs"
+    "migrate:users": "node scripts/migrate-users-to-postgres.mjs",
+    "migrate:connections": "node scripts/migrate-connections-to-postgres.mjs"
   },
   "dependencies": {
     "next": "latest",

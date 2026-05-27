@@ -32,13 +32,22 @@ if (users.length === 0) {
   process.exit(0);
 }
 
-const pool = new Pool({ connectionString, max: 1 });
+const pool = new Pool({
+  connectionString: normalizePostgresSslMode(connectionString),
+  max: 1,
+});
 
 try {
   await ensureSchema(pool);
 
   for (const user of users) {
-    await upsertUser(pool, normalizeUserForPostgres(user));
+    const normalizedUser = normalizeUserForPostgres(user);
+    const existingUserId = await findExistingUserId(pool, normalizedUser);
+
+    await upsertUser(pool, {
+      ...normalizedUser,
+      id: existingUserId ?? normalizedUser.id,
+    });
   }
 
   console.log(`Migrated ${users.length} user account(s) to Postgres.`);
@@ -77,6 +86,26 @@ function normalizeUserForPostgres(user) {
   };
 }
 
+function normalizePostgresSslMode(value) {
+  try {
+    const url = new URL(value);
+    const sslMode = url.searchParams.get("sslmode");
+
+    if (
+      sslMode === "prefer" ||
+      sslMode === "require" ||
+      sslMode === "verify-ca"
+    ) {
+      url.searchParams.set("sslmode", "verify-full");
+      return url.toString();
+    }
+  } catch {
+    return value;
+  }
+
+  return value;
+}
+
 async function ensureSchema(db) {
   await db.query(`
     CREATE TABLE IF NOT EXISTS ${usersTable} (
@@ -112,6 +141,31 @@ async function ensureSchema(db) {
       updated_at timestamptz NOT NULL DEFAULT now()
     );
   `);
+}
+
+async function findExistingUserId(db, user) {
+  const result = await db.query(
+    `
+      SELECT id
+      FROM ${usersTable}
+      WHERE
+        id = $1
+        OR username_key = $2
+        OR email = $3
+        OR ($4::text IS NOT NULL AND google_sub = $4)
+      ORDER BY
+        CASE
+          WHEN id = $1 THEN 0
+          WHEN google_sub = $4 THEN 1
+          WHEN email = $3 THEN 2
+          ELSE 3
+        END
+      LIMIT 1
+    `,
+    [user.id, user.username.trim().toLowerCase(), user.email, user.googleSub ?? null],
+  );
+
+  return result.rows[0]?.id ?? null;
 }
 
 async function upsertUser(db, user) {

@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createUser } from "@/lib/authStore";
 import { setSessionCookie } from "@/lib/session";
+import {
+  isUserStorageConfigurationError,
+  userStorageUnavailableMessage,
+} from "@/lib/userStorageErrors";
 
 export const runtime = "nodejs";
 
@@ -15,7 +19,22 @@ export async function POST(request: Request) {
   const username = typeof input.username === "string" ? input.username : "";
   const email = typeof input.email === "string" ? input.email : "";
   const password = typeof input.password === "string" ? input.password : "";
-  const result = await createUser({ username, email, password });
+  const result = await createUser({ username, email, password }).catch(
+    (error) => {
+      if (isUserStorageConfigurationError(error)) {
+        return null;
+      }
+
+      throw error;
+    },
+  );
+
+  if (!result) {
+    return NextResponse.json(
+      { error: userStorageUnavailableMessage },
+      { status: 503 },
+    );
+  }
 
   if (!result.user) {
     return NextResponse.json({ error: result.error }, { status: 400 });

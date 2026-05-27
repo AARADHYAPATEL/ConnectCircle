@@ -28,3 +28,6 @@ next-dev.*.log
 
 # local prototype data
 .data/
+
+.vercel
+.env*.local

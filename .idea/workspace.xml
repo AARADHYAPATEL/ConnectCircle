@@ -4,15 +4,21 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="Major updates and bug fixes.">
-      <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
+    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="POSTGRES added for more reliable and solid database.">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PROJECT_CONTEXT.md" beforeDir="false" afterPath="$PROJECT_DIR$/PROJECT_CONTEXT.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PRODUCTION_AUTH_STORAGE.md" beforeDir="false" afterPath="$PROJECT_DIR$/PRODUCTION_AUTH_STORAGE.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cloudflared-20260508-212717.err.log" beforeDir="false" afterPath="$PROJECT_DIR$/cloudflared-20260508-212717.err.log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/next-env.d.ts" beforeDir="false" afterPath="$PROJECT_DIR$/next-env.d.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/migrate-users-to-postgres.mjs" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/migrate-users-to-postgres.mjs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/auth/google/callback/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/auth/google/callback/route.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/api/auth/login/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/auth/login/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/authStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/authStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/auth/register/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/auth/register/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/globals.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/globals.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/auth/AuthForm.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/auth/AuthForm.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/connectionStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/connectionStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/userAccountStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/userAccountStore.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -43,7 +49,7 @@
     </persistenceIdMap>
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="164" />
+    <option name="cachedIndexableFilesCount" value="177" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="Git.Settings">
@@ -144,7 +150,9 @@
       <workItem from="1777864546528" duration="4600000" />
       <workItem from="1778227442437" duration="8802000" />
       <workItem from="1778299657976" duration="819000" />
-      <workItem from="1778313750706" duration="2647000" />
+      <workItem from="1778313750706" duration="5247000" />
+      <workItem from="1779872863532" duration="189000" />
+      <workItem from="1779873094911" duration="1355000" />
     </task>
     <task id="LOCAL-00001" summary="This is ConnectCircle, where students can share their mood, send supportive messages to friends and build stronger peer relationships.">
       <option name="closed" value="true" />
@@ -202,7 +210,15 @@
       <option name="project" value="LOCAL" />
       <updated>1778314045133</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="POSTGRES added for more reliable and solid database.">
+      <option name="closed" value="true" />
+      <created>1778316433262</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1778316433262</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -224,7 +240,8 @@
     <MESSAGE value="a few changes" />
     <MESSAGE value="A lot of fixes and UI/UX changes to make the app better and more appealing." />
     <MESSAGE value="Major updates and bug fixes." />
-    <option name="LAST_COMMIT_MESSAGE" value="Major updates and bug fixes." />
+    <MESSAGE value="POSTGRES added for more reliable and solid database." />
+    <option name="LAST_COMMIT_MESSAGE" value="POSTGRES added for more reliable and solid database." />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { findOrCreateGoogleUser } from "@/lib/authStore";
 import { getRequestUrl } from "@/lib/requestOrigin";
 import { setSessionCookie } from "@/lib/session";
+import { isUserStorageConfigurationError } from "@/lib/userStorageErrors";
 
 const googleTokenEndpoint = "https://oauth2.googleapis.com/token";
 const googleUserInfoEndpoint = "https://openidconnect.googleapis.com/v1/userinfo";
@@ -86,11 +87,24 @@ export async function GET(request: Request) {
     );
   }
 
-  const user = await findOrCreateGoogleUser({
-    email: googleUser.email,
-    name: googleUser.name ?? googleUser.email.split("@")[0],
-    sub: googleUser.sub,
-  });
+  let user;
+
+  try {
+    user = await findOrCreateGoogleUser({
+      email: googleUser.email,
+      name: googleUser.name ?? googleUser.email.split("@")[0],
+      sub: googleUser.sub,
+    });
+  } catch (error) {
+    if (isUserStorageConfigurationError(error)) {
+      return NextResponse.redirect(
+        getRequestUrl(request, "/auth/login?error=database_not_configured"),
+      );
+    }
+
+    throw error;
+  }
+
   const response = NextResponse.redirect(getRequestUrl(request, "/"));
 
   response.cookies.set(googleStateCookie, "", {

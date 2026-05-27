@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { Pool, type QueryResultRow } from "pg";
 import type {
   BlockedConnection,
   ConnectionRelationshipSummary,
@@ -11,6 +12,12 @@ import type {
 
 const dataDirectory = path.join(process.cwd(), ".data");
 const connectionsFile = path.join(dataDirectory, "connections.json");
+const requestsTable = "connectcircle_connection_requests";
+const friendshipsTable = "connectcircle_friendships";
+const blocksTable = "connectcircle_connection_blocks";
+
+let pool: Pool | null = null;
+let hasEnsuredPostgresSchema = false;
 
 type ConnectionData = {
   requests: ConnectionRequest[];
@@ -37,6 +44,31 @@ type RespondRequestResult = {
 
 type ConnectionMutationResult = {
   error: string;
+};
+
+type ConnectionRequestRow = QueryResultRow & {
+  id: string;
+  from_username: string;
+  to_username: string;
+  status: string;
+  created_at: Date | string;
+  responded_at: Date | string | null;
+};
+
+type FriendshipRow = QueryResultRow & {
+  id: string;
+  username_first: string;
+  username_second: string;
+  created_at: Date | string;
+  request_id: string;
+};
+
+type BlockedConnectionRow = QueryResultRow & {
+  id: string;
+  blocker_username: string;
+  blocked_username: string;
+  created_at: Date | string;
+  removed_from_list_at: Date | string | null;
 };
 
 function normalizeUsername(username: string) {
@@ -114,7 +146,246 @@ function isBlockedBetween(
   );
 }
 
+function getPostgresConnectionString() {
+  return (
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    ""
+  );
+}
+
+function normalizePostgresSslMode(connectionString: string) {
+  if (!connectionString) {
+    return connectionString;
+  }
+
+  try {
+    const url = new URL(connectionString);
+    const sslMode = url.searchParams.get("sslmode");
+
+    if (
+      sslMode === "prefer" ||
+      sslMode === "require" ||
+      sslMode === "verify-ca"
+    ) {
+      url.searchParams.set("sslmode", "verify-full");
+      return url.toString();
+    }
+  } catch {
+    return connectionString;
+  }
+
+  return connectionString;
+}
+
+function shouldUsePostgres() {
+  return Boolean(getPostgresConnectionString());
+}
+
+function assertProductionConnectionStoreConfigured() {
+  if (
+    !shouldUsePostgres() &&
+    (process.env.VERCEL === "1" ||
+      process.env.CONNECTCIRCLE_REQUIRE_DATABASE === "true")
+  ) {
+    throw new Error(
+      "ConnectCircle connection storage is not configured. Set DATABASE_URL or POSTGRES_URL before running in production.",
+    );
+  }
+}
+
+function getPool() {
+  const connectionString = normalizePostgresSslMode(
+    getPostgresConnectionString(),
+  );
+
+  if (!connectionString) {
+    throw new Error("Postgres connection string is not configured.");
+  }
+
+  if (!pool) {
+    pool = new Pool({
+      connectionString,
+      max: 5,
+    });
+  }
+
+  return pool;
+}
+
+async function ensurePostgresSchema() {
+  if (hasEnsuredPostgresSchema) {
+    return;
+  }
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS ${requestsTable} (
+      id text PRIMARY KEY,
+      from_username text NOT NULL,
+      to_username text NOT NULL,
+      status text NOT NULL CHECK (status IN ('pending', 'accepted', 'declined')),
+      created_at timestamptz NOT NULL,
+      responded_at timestamptz,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE TABLE IF NOT EXISTS ${friendshipsTable} (
+      id text PRIMARY KEY,
+      username_first text NOT NULL,
+      username_second text NOT NULL,
+      created_at timestamptz NOT NULL,
+      request_id text NOT NULL,
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE (username_first, username_second)
+    );
+
+    CREATE TABLE IF NOT EXISTS ${blocksTable} (
+      id text PRIMARY KEY,
+      blocker_username text NOT NULL,
+      blocked_username text NOT NULL,
+      created_at timestamptz NOT NULL,
+      removed_from_list_at timestamptz,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS connectcircle_connection_requests_users_idx
+      ON ${requestsTable} (from_username, to_username, status);
+
+    CREATE INDEX IF NOT EXISTS connectcircle_friendships_users_idx
+      ON ${friendshipsTable} (username_first, username_second);
+
+    CREATE INDEX IF NOT EXISTS connectcircle_connection_blocks_users_idx
+      ON ${blocksTable} (blocker_username, blocked_username);
+  `);
+
+  hasEnsuredPostgresSchema = true;
+}
+
+async function readPostgresConnectionData(): Promise<ConnectionData> {
+  await ensurePostgresSchema();
+
+  const [requestRows, friendshipRows, blockRows] = await Promise.all([
+    getPool().query<ConnectionRequestRow>(`
+      SELECT id, from_username, to_username, status, created_at, responded_at
+      FROM ${requestsTable}
+      ORDER BY created_at DESC
+    `),
+    getPool().query<FriendshipRow>(`
+      SELECT id, username_first, username_second, created_at, request_id
+      FROM ${friendshipsTable}
+      ORDER BY created_at DESC
+    `),
+    getPool().query<BlockedConnectionRow>(`
+      SELECT id, blocker_username, blocked_username, created_at, removed_from_list_at
+      FROM ${blocksTable}
+      ORDER BY created_at DESC
+    `),
+  ]);
+
+  return {
+    requests: requestRows.rows.map(toConnectionRequest),
+    friendships: friendshipRows.rows.map(toFriendship),
+    blocks: blockRows.rows.map(toBlockedConnection),
+  };
+}
+
+async function writePostgresConnectionData(data: ConnectionData) {
+  await ensurePostgresSchema();
+
+  const client = await getPool().connect();
+
+  try {
+    await client.query("BEGIN");
+    await client.query(`DELETE FROM ${blocksTable}`);
+    await client.query(`DELETE FROM ${friendshipsTable}`);
+    await client.query(`DELETE FROM ${requestsTable}`);
+
+    for (const request of data.requests) {
+      await client.query(
+        `
+          INSERT INTO ${requestsTable} (
+            id,
+            from_username,
+            to_username,
+            status,
+            created_at,
+            responded_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6)
+        `,
+        [
+          request.id,
+          request.fromUsername,
+          request.toUsername,
+          request.status,
+          request.createdAt,
+          request.respondedAt ?? null,
+        ],
+      );
+    }
+
+    for (const friendship of data.friendships) {
+      await client.query(
+        `
+          INSERT INTO ${friendshipsTable} (
+            id,
+            username_first,
+            username_second,
+            created_at,
+            request_id
+          )
+          VALUES ($1, $2, $3, $4, $5)
+        `,
+        [
+          friendship.id,
+          friendship.usernames[0],
+          friendship.usernames[1],
+          friendship.createdAt,
+          friendship.requestId,
+        ],
+      );
+    }
+
+    for (const block of data.blocks) {
+      await client.query(
+        `
+          INSERT INTO ${blocksTable} (
+            id,
+            blocker_username,
+            blocked_username,
+            created_at,
+            removed_from_list_at
+          )
+          VALUES ($1, $2, $3, $4, $5)
+        `,
+        [
+          block.id,
+          block.blockerUsername,
+          block.blockedUsername,
+          block.createdAt,
+          block.removedFromListAt ?? null,
+        ],
+      );
+    }
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function readConnectionData(): Promise<ConnectionData> {
+  if (shouldUsePostgres()) {
+    return readPostgresConnectionData();
+  }
+
+  assertProductionConnectionStoreConfigured();
+
   try {
     const file = await fs.readFile(connectionsFile, "utf8");
     const parsed: unknown = JSON.parse(file);
@@ -140,6 +411,13 @@ async function readConnectionData(): Promise<ConnectionData> {
 }
 
 async function writeConnectionData(data: ConnectionData) {
+  if (shouldUsePostgres()) {
+    await writePostgresConnectionData(data);
+    return;
+  }
+
+  assertProductionConnectionStoreConfigured();
+
   await fs.mkdir(dataDirectory, { recursive: true });
 
   const temporaryFile = `${connectionsFile}.tmp`;
@@ -632,4 +910,46 @@ function isBlockedConnection(value: unknown): value is BlockedConnection {
     (typeof block.removedFromListAt === "undefined" ||
       typeof block.removedFromListAt === "string")
   );
+}
+
+function toIsoString(value: Date | string) {
+  return value instanceof Date ? value.toISOString() : value;
+}
+
+function toConnectionRequest(row: ConnectionRequestRow): ConnectionRequest {
+  const respondedAt = row.responded_at
+    ? toIsoString(row.responded_at)
+    : undefined;
+
+  return {
+    id: row.id,
+    fromUsername: row.from_username,
+    toUsername: row.to_username,
+    status: row.status as ConnectionRequest["status"],
+    createdAt: toIsoString(row.created_at),
+    ...(respondedAt ? { respondedAt } : {}),
+  };
+}
+
+function toFriendship(row: FriendshipRow): Friendship {
+  return {
+    id: row.id,
+    usernames: [row.username_first, row.username_second],
+    createdAt: toIsoString(row.created_at),
+    requestId: row.request_id,
+  };
+}
+
+function toBlockedConnection(row: BlockedConnectionRow): BlockedConnection {
+  const removedFromListAt = row.removed_from_list_at
+    ? toIsoString(row.removed_from_list_at)
+    : undefined;
+
+  return {
+    id: row.id,
+    blockerUsername: row.blocker_username,
+    blockedUsername: row.blocked_username,
+    createdAt: toIsoString(row.created_at),
+    ...(removedFromListAt ? { removedFromListAt } : {}),
+  };
 }

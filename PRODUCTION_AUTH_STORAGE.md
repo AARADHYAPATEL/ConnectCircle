@@ -34,6 +34,10 @@ Postgres is configured. The same schema is also available at:
 database/connectcircle-users.sql
 ```
 
+Connection requests, friendships, and blocked-user records also use Postgres
+when `DATABASE_URL` or `POSTGRES_URL` is configured. Local development without
+a database keeps using `.data/connections.json`.
+
 ## Migrating Existing Local Users
 
 After adding `DATABASE_URL` to `.env.local`, run:
@@ -66,7 +70,7 @@ areas still use local `.data` files and should be migrated before real
 production:
 
 - chat messages and media metadata
-- circles and connections
+- circles
 - mood entries and shared moods
 - reports and admin accounts
 - feedback records, if persisted locally

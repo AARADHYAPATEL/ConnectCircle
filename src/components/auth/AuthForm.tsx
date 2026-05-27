@@ -213,6 +213,8 @@ function getGoogleErrorMessage(error: string | null) {
       return "Google did not return a verified email profile. Use another account or sign in with email.";
     case "google_private_ip":
       return "Google sign-in requires a public HTTPS URL. Use email and password locally, or open the app through a public tunnel.";
+    case "database_not_configured":
+      return "ConnectCircle's production database is not connected yet. Add DATABASE_URL or POSTGRES_URL in Vercel, then redeploy.";
     default:
       return "";
   }
