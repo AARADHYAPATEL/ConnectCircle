@@ -35,6 +35,8 @@ type CreateSafetyReportInput = {
   contextType: unknown;
   details: unknown;
   reason: unknown;
+  reporterIp?: unknown;
+  reporterUserAgent?: unknown;
   reportedUsername: unknown;
 };
 
@@ -62,6 +64,12 @@ function cleanDetails(value: unknown) {
     : "";
 }
 
+function cleanMetadataText(value: unknown, limit: number) {
+  return typeof value === "string"
+    ? value.trim().replace(/\s+/g, " ").slice(0, limit)
+    : "";
+}
+
 function isSafetyReport(value: unknown): value is SafetyReport {
   if (!value || typeof value !== "object") {
     return false;
@@ -78,7 +86,11 @@ function isSafetyReport(value: unknown): value is SafetyReport {
     isReportContextType(report.contextType) &&
     typeof report.contextId === "string" &&
     isReportStatus(report.status) &&
-    typeof report.createdAt === "string"
+    typeof report.createdAt === "string" &&
+    (typeof report.reporterIp === "undefined" ||
+      typeof report.reporterIp === "string") &&
+    (typeof report.reporterUserAgent === "undefined" ||
+      typeof report.reporterUserAgent === "string")
   );
 }
 
@@ -311,6 +323,12 @@ export async function createSafetyReport(
     details: cleanDetails(input.details),
     contextType: input.contextType,
     contextId: resolvedContext.contextId,
+    ...(cleanMetadataText(input.reporterIp, 120)
+      ? { reporterIp: cleanMetadataText(input.reporterIp, 120) }
+      : {}),
+    ...(cleanMetadataText(input.reporterUserAgent, 300)
+      ? { reporterUserAgent: cleanMetadataText(input.reporterUserAgent, 300) }
+      : {}),
     ...(resolvedContext.messageSnapshot
       ? { messageSnapshot: resolvedContext.messageSnapshot }
       : {}),
@@ -400,6 +418,15 @@ export function formatSafetyReportText(report: SafetyReport) {
     report.details || "(none provided)",
     "",
   ];
+
+  if (report.reporterIp || report.reporterUserAgent) {
+    lines.push(
+      "Request metadata:",
+      `Reporter IP: ${report.reporterIp || "(not recorded)"}`,
+      `Reporter user agent: ${report.reporterUserAgent || "(not recorded)"}`,
+      "",
+    );
+  }
 
   if (report.messageSnapshot) {
     lines.push(

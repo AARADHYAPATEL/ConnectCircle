@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { updateUserProfile } from "@/lib/authStore";
+import { getMutationBlockedResponse } from "@/lib/apiModeration";
 import {
   profileVisibilityOptions,
   type ProfileVisibility,
@@ -13,6 +14,12 @@ export async function PATCH(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  const moderationResponse = await getMutationBlockedResponse(user.username);
+
+  if (moderationResponse) {
+    return moderationResponse;
   }
 
   let body: unknown;

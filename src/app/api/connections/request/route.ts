@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUserByUsername } from "@/lib/authStore";
+import { getMutationBlockedResponse } from "@/lib/apiModeration";
 import { sendConnectionRequest } from "@/lib/connectionStore";
 import { getCurrentUser } from "@/lib/session";
 
@@ -11,6 +12,12 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  const moderationResponse = await getMutationBlockedResponse(user.username);
+
+  if (moderationResponse) {
+    return moderationResponse;
   }
 
   let body: unknown;

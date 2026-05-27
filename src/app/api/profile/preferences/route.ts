@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { updateUserPreferences } from "@/lib/authStore";
+import { getMutationBlockedResponse } from "@/lib/apiModeration";
 import {
   availabilityStatusOptions,
   themePreferenceOptions,
@@ -15,6 +16,12 @@ export async function PATCH(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  const moderationResponse = await getMutationBlockedResponse(user.username);
+
+  if (moderationResponse) {
+    return moderationResponse;
   }
 
   let body: unknown;
@@ -61,4 +68,3 @@ function isThemePreference(value: unknown): value is ThemePreference {
     themePreferenceOptions.some((option) => option === value)
   );
 }
-

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createUser } from "@/lib/authStore";
+import { getIpBlockedJsonResponse } from "@/lib/apiModeration";
 import { setSessionCookie } from "@/lib/session";
+import { recordUserNetworkAccess } from "@/lib/userNetworkStore";
 import {
   isUserStorageConfigurationError,
   userStorageUnavailableMessage,
@@ -9,6 +11,12 @@ import {
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const ipBlockedResponse = await getIpBlockedJsonResponse(request);
+
+  if (ipBlockedResponse) {
+    return ipBlockedResponse;
+  }
+
   const body: unknown = await request.json();
 
   if (!body || typeof body !== "object") {
@@ -41,6 +49,7 @@ export async function POST(request: Request) {
   }
 
   const response = NextResponse.json({ user: result.user }, { status: 201 });
+  await recordUserNetworkAccess(result.user, request);
   setSessionCookie(response, result.user);
 
   return response;

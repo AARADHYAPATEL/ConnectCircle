@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import { AdminReportActionPanel } from "@/components/admin/AdminReportActionPanel";
 import { AdminReportStatusForm } from "@/components/admin/AdminReportStatusForm";
 import { getCurrentAdmin } from "@/lib/adminSession";
+import { getModerationRecordsByReportId } from "@/lib/moderationStore";
 import { getSafetyReportById } from "@/lib/reportStore";
+import { getUserNetworkRecordByUsername } from "@/lib/userNetworkStore";
 import {
   reportReasonOptions,
   type ReportContextType,
@@ -75,6 +78,11 @@ export default async function AdminReportDetailPage({
     notFound();
   }
 
+  const [moderationActions, reportedUserNetwork] = await Promise.all([
+    getModerationRecordsByReportId(report.id),
+    getUserNetworkRecordByUsername(report.reportedUsername),
+  ]);
+
   return (
     <main className="min-h-screen">
       <AdminHeader admin={admin} />
@@ -114,6 +122,9 @@ export default async function AdminReportDetailPage({
                   label="Reporter"
                   value={`@${report.reporterUsername}`}
                 />
+                {report.reporterIp ? (
+                  <ReportField label="Reporter IP" value={report.reporterIp} />
+                ) : null}
                 <ReportField
                   label="Context"
                   value={getContextLabel(report.contextType)}
@@ -188,6 +199,14 @@ export default async function AdminReportDetailPage({
           </div>
 
           <div className="grid content-start gap-5">
+            <AdminReportActionPanel
+              actions={moderationActions}
+              reportedUserIp={reportedUserNetwork?.lastIp}
+              reportedUsername={report.reportedUsername}
+              reporterIp={report.reporterIp}
+              reportId={report.id}
+            />
+
             <AdminReportStatusForm
               initialNote={report.resolutionNote ?? ""}
               initialStatus={report.status}
@@ -232,4 +251,3 @@ function ReportField({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-

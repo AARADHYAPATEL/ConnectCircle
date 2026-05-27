@@ -69,6 +69,8 @@ export type SafetyReport = {
   contextType: ReportContextType;
   contextId: string;
   messageSnapshot?: ReportMessageSnapshot;
+  reporterIp?: string;
+  reporterUserAgent?: string;
   status: ReportStatus;
   createdAt: string;
   reviewedAt?: string;
@@ -98,4 +100,3 @@ export function isReportStatus(value: unknown): value is ReportStatus {
     reportStatuses.some((status) => status === value)
   );
 }
-

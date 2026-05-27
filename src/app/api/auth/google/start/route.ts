@@ -5,6 +5,8 @@ import {
   getRequestUrl,
   isPrivateNetworkHost,
 } from "@/lib/requestOrigin";
+import { getIpBanBlock } from "@/lib/moderationStore";
+import { getClientIp } from "@/lib/requestIdentity";
 
 const googleAuthorizationEndpoint =
   "https://accounts.google.com/o/oauth2/v2/auth";
@@ -17,6 +19,13 @@ export async function GET(request: Request) {
   const authMode = url.searchParams.get("mode") === "register" ? "register" : "login";
   const authPath = `/auth/${authMode}`;
   const host = getRequestHost(request);
+  const clientIp = getClientIp(request);
+
+  if (clientIp && (await getIpBanBlock(clientIp))) {
+    return NextResponse.redirect(
+      getRequestUrl(request, `${authPath}?error=ip_banned`),
+    );
+  }
 
   if (host !== "localhost" && host !== "127.0.0.1" && isPrivateNetworkHost(host)) {
     return NextResponse.redirect(

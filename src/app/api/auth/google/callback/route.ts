@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { findOrCreateGoogleUser } from "@/lib/authStore";
+import { getIpBanBlock, getUserSignInBlock } from "@/lib/moderationStore";
 import { getRequestUrl } from "@/lib/requestOrigin";
+import { getClientIp } from "@/lib/requestIdentity";
 import { setSessionCookie } from "@/lib/session";
+import { recordUserNetworkAccess } from "@/lib/userNetworkStore";
 import { isUserStorageConfigurationError } from "@/lib/userStorageErrors";
 
 const googleTokenEndpoint = "https://oauth2.googleapis.com/token";
@@ -23,6 +26,14 @@ type GoogleUserInfo = {
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
+  const clientIp = getClientIp(request);
+
+  if (clientIp && (await getIpBanBlock(clientIp))) {
+    return NextResponse.redirect(
+      getRequestUrl(request, "/auth/login?error=ip_banned"),
+    );
+  }
+
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
@@ -105,6 +116,24 @@ export async function GET(request: Request) {
     throw error;
   }
 
+  const signInBlock = await getUserSignInBlock(user.username);
+
+  if (signInBlock) {
+    const blockedResponse = NextResponse.redirect(
+      getRequestUrl(request, "/auth/login?error=account_banned"),
+    );
+
+    blockedResponse.cookies.set(googleStateCookie, "", {
+      httpOnly: true,
+      maxAge: 0,
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+
+    return blockedResponse;
+  }
+
   const response = NextResponse.redirect(getRequestUrl(request, "/"));
 
   response.cookies.set(googleStateCookie, "", {
@@ -114,6 +143,7 @@ export async function GET(request: Request) {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
   });
+  await recordUserNetworkAccess(user, request);
   setSessionCookie(response, user);
 
   return response;

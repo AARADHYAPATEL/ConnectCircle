@@ -466,6 +466,12 @@ async function updatePostgresUser(user: UserAccount) {
   );
 }
 
+async function deletePostgresUser(userId: string) {
+  await ensurePostgresSchema();
+
+  await getPool().query(`DELETE FROM ${usersTable} WHERE id = $1`, [userId]);
+}
+
 async function searchPostgresUsersByUsername({
   excludeUsernameKey,
   limit,
@@ -718,6 +724,22 @@ export async function updateUserAccount(user: UserAccount) {
       currentUser.id === user.id ? user : currentUser,
     ),
   );
+}
+
+export async function deleteUserAccount(userId: string) {
+  if (shouldUseTurso()) {
+    const users = await readTursoUsers();
+    await writeTursoUsers(users.filter((user) => user.id !== userId));
+    return;
+  }
+
+  if (shouldUsePostgres()) {
+    await deletePostgresUser(userId);
+    return;
+  }
+
+  const users = await readJsonUsers();
+  await writeJsonUsers(users.filter((user) => user.id !== userId));
 }
 
 export async function searchUserAccountsByUsername({

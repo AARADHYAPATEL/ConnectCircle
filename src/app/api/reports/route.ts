@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getMutationBlockedResponse } from "@/lib/apiModeration";
+import { getClientIp, getUserAgent } from "@/lib/requestIdentity";
 import { createSafetyReport } from "@/lib/reportStore";
 import { getCurrentUser } from "@/lib/session";
 
@@ -10,6 +12,12 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  const moderationResponse = await getMutationBlockedResponse(user.username);
+
+  if (moderationResponse) {
+    return moderationResponse;
   }
 
   let body: unknown;
@@ -30,6 +38,8 @@ export async function POST(request: Request) {
     contextType: reportRequest.contextType,
     details: reportRequest.details,
     reason: reportRequest.reason,
+    reporterIp: getClientIp(request),
+    reporterUserAgent: getUserAgent(request),
     reportedUsername: reportRequest.reportedUsername,
   });
 

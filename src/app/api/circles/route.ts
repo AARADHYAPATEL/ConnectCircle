@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getMutationBlockedResponse } from "@/lib/apiModeration";
 import { createCircle, getCircleSummaryForUser } from "@/lib/circleStore";
 import { getCurrentUser } from "@/lib/session";
 
@@ -22,6 +23,12 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  const moderationResponse = await getMutationBlockedResponse(user.username);
+
+  if (moderationResponse) {
+    return moderationResponse;
   }
 
   let body: unknown;

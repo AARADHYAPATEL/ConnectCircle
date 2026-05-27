@@ -24,12 +24,14 @@ import {
   findUserAccountByUsernameKey,
   getAllUserAccounts,
   clearUserLoginFailures,
+  deleteUserAccount,
   getUserLoginLockedError,
   insertUserAccount,
   recordUserLoginFailure,
   searchUserAccountsByUsername,
   updateUserAccount,
 } from "@/lib/userAccountStore";
+import { getUserSignInBlock } from "@/lib/moderationStore";
 import type { PublicUser, UserAccount } from "@/lib/userAccountTypes";
 
 export type { PublicUser, UserAccount } from "@/lib/userAccountTypes";
@@ -259,6 +261,15 @@ export async function createUser({ username, email, password }: CreateUserInput)
     };
   }
 
+  const usernameBlock = await getUserSignInBlock(cleanUsername);
+
+  if (usernameBlock) {
+    return {
+      error: "This username is not available.",
+      user: null,
+    };
+  }
+
   if (await findUserAccountByEmail(cleanEmail)) {
     return {
       error: "An account with this email already exists.",
@@ -367,6 +378,16 @@ export async function verifyUserCredentials(
 
   await clearUserLoginFailures(cleanEmail);
 
+  const signInBlock = await getUserSignInBlock(user.username);
+
+  if (signInBlock) {
+    return {
+      error: signInBlock.message,
+      status: 403,
+      user: null,
+    };
+  }
+
   if (passwordAlgorithm !== currentPasswordAlgorithm) {
     await updateUserAccount({
       ...user,
@@ -440,6 +461,19 @@ export async function getUserByUsername(username: string) {
   const user = await findUserAccountByUsernameKey(cleanUsernameKey);
 
   return user ? toPublicUser(user) : null;
+}
+
+export async function deleteUserByUsername(username: string) {
+  const cleanUsernameKey = normalizeUsernameKey(username);
+  const user = await findUserAccountByUsernameKey(cleanUsernameKey);
+
+  if (!user) {
+    return false;
+  }
+
+  await deleteUserAccount(user.id);
+
+  return true;
 }
 
 export async function updateUserProfile(

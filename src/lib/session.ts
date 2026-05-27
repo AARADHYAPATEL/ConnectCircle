@@ -1,7 +1,9 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import type { NextResponse } from "next/server";
 import { getUserById, type PublicUser } from "@/lib/authStore";
+import { getIpBanBlock, getUserSignInBlock } from "@/lib/moderationStore";
+import { getClientIpFromHeaders } from "@/lib/requestIdentity";
 
 const sessionCookieName = "connectcircle_session";
 const sessionMaxAge = 60 * 60 * 24 * 7;
@@ -106,7 +108,13 @@ export function clearSessionCookie(response: NextResponse) {
 }
 
 export async function getCurrentUser() {
-  const cookieStore = await cookies();
+  const [cookieStore, headerStore] = await Promise.all([cookies(), headers()]);
+  const clientIp = getClientIpFromHeaders(headerStore);
+
+  if (clientIp && (await getIpBanBlock(clientIp))) {
+    return null;
+  }
+
   const token = cookieStore.get(sessionCookieName)?.value;
 
   if (!token) {
@@ -119,7 +127,13 @@ export async function getCurrentUser() {
     return null;
   }
 
-  return getUserById(payload.userId);
+  const user = await getUserById(payload.userId);
+
+  if (!user) {
+    return null;
+  }
+
+  return (await getUserSignInBlock(user.username)) ? null : user;
 }
 
 function isSessionPayload(value: unknown): value is SessionPayload {
