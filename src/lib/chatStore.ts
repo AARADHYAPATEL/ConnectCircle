@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { Pool, type QueryResultRow } from "pg";
 import { getFriendUsernames } from "@/lib/connectionStore";
 import type { ChatMediaAttachment } from "@/lib/chatImageAttachments";
 import {
@@ -13,6 +14,10 @@ import {
 
 const dataDirectory = path.join(process.cwd(), ".data");
 const chatMessagesFile = path.join(dataDirectory, "chat-messages.json");
+const chatMessagesTable = "connectcircle_chat_messages";
+
+let pool: Pool | null = null;
+let hasEnsuredPostgresSchema = false;
 
 type ChatThreadResult = {
   error: string;
@@ -33,6 +38,16 @@ type DeleteChatMessageResult = {
   error: string;
 };
 
+type ChatMessageRow = QueryResultRow & {
+  id: string;
+  from_username: string;
+  to_username: string;
+  message: string;
+  image_attachment: unknown;
+  created_at: Date | string;
+  edited_at: Date | string | null;
+};
+
 function areSameUser(firstUsername: string, secondUsername: string) {
   return firstUsername.trim().toLowerCase() === secondUsername.trim().toLowerCase();
 }
@@ -50,7 +65,188 @@ function isBetweenUsers(
   );
 }
 
-async function readChatMessages() {
+function getPostgresConnectionString() {
+  return (
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    ""
+  );
+}
+
+function normalizePostgresSslMode(connectionString: string) {
+  if (!connectionString) {
+    return connectionString;
+  }
+
+  try {
+    const url = new URL(connectionString);
+    const sslMode = url.searchParams.get("sslmode");
+
+    if (
+      sslMode === "prefer" ||
+      sslMode === "require" ||
+      sslMode === "verify-ca"
+    ) {
+      url.searchParams.set("sslmode", "verify-full");
+      return url.toString();
+    }
+  } catch {
+    return connectionString;
+  }
+
+  return connectionString;
+}
+
+function shouldUsePostgres() {
+  return Boolean(getPostgresConnectionString());
+}
+
+function assertProductionChatStoreConfigured() {
+  if (
+    !shouldUsePostgres() &&
+    (process.env.VERCEL === "1" ||
+      process.env.CONNECTCIRCLE_REQUIRE_DATABASE === "true")
+  ) {
+    throw new Error(
+      "ConnectCircle chat storage is not configured. Set DATABASE_URL or POSTGRES_URL before running in production.",
+    );
+  }
+}
+
+function getPool() {
+  const connectionString = normalizePostgresSslMode(
+    getPostgresConnectionString(),
+  );
+
+  if (!connectionString) {
+    throw new Error("Postgres connection string is not configured.");
+  }
+
+  if (!pool) {
+    pool = new Pool({
+      connectionString,
+      max: 5,
+    });
+  }
+
+  return pool;
+}
+
+async function ensurePostgresSchema() {
+  if (hasEnsuredPostgresSchema) {
+    return;
+  }
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS ${chatMessagesTable} (
+      id text PRIMARY KEY,
+      from_username text NOT NULL,
+      to_username text NOT NULL,
+      message text NOT NULL,
+      image_attachment jsonb,
+      created_at timestamptz NOT NULL,
+      edited_at timestamptz,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS connectcircle_chat_messages_users_idx
+      ON ${chatMessagesTable} (from_username, to_username, created_at);
+
+    CREATE INDEX IF NOT EXISTS connectcircle_chat_messages_created_idx
+      ON ${chatMessagesTable} (created_at);
+  `);
+
+  hasEnsuredPostgresSchema = true;
+}
+
+function toIsoString(value: Date | string) {
+  return value instanceof Date ? value.toISOString() : value;
+}
+
+function rowToChatMessage(row: ChatMessageRow): ChatMessage {
+  const message: ChatMessage = {
+    id: row.id,
+    fromUsername: row.from_username,
+    toUsername: row.to_username,
+    message: row.message,
+    createdAt: toIsoString(row.created_at),
+    ...(row.edited_at ? { editedAt: toIsoString(row.edited_at) } : {}),
+  };
+  const candidateMessage = {
+    ...message,
+    ...(row.image_attachment ? { imageAttachment: row.image_attachment } : {}),
+  };
+
+  return isChatMessage(candidateMessage) ? candidateMessage : message;
+}
+
+function chatMessageToPostgresValues(message: ChatMessage) {
+  return [
+    message.id,
+    message.fromUsername,
+    message.toUsername,
+    message.message,
+    message.imageAttachment ? JSON.stringify(message.imageAttachment) : null,
+    message.createdAt,
+    message.editedAt ?? null,
+  ];
+}
+
+async function readPostgresChatMessages() {
+  await ensurePostgresSchema();
+
+  const result = await getPool().query<ChatMessageRow>(
+    `
+      SELECT id, from_username, to_username, message, image_attachment, created_at, edited_at
+      FROM ${chatMessagesTable}
+      ORDER BY created_at DESC
+    `,
+  );
+
+  return result.rows.map(rowToChatMessage);
+}
+
+async function writePostgresChatMessages(messages: ChatMessage[]) {
+  await ensurePostgresSchema();
+
+  const client = await getPool().connect();
+
+  try {
+    await client.query("BEGIN");
+    await client.query(`DELETE FROM ${chatMessagesTable}`);
+
+    for (const message of messages) {
+      await client.query(
+        `
+          INSERT INTO ${chatMessagesTable} (
+            id,
+            from_username,
+            to_username,
+            message,
+            image_attachment,
+            created_at,
+            edited_at
+          )
+          VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
+        `,
+        chatMessageToPostgresValues(message),
+      );
+    }
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function readJsonChatMessages() {
+  assertProductionChatStoreConfigured();
+
   try {
     const file = await fs.readFile(chatMessagesFile, "utf8");
     const parsed: unknown = JSON.parse(file);
@@ -69,12 +265,26 @@ async function readChatMessages() {
   }
 }
 
-async function writeChatMessages(messages: ChatMessage[]) {
+async function writeJsonChatMessages(messages: ChatMessage[]) {
+  assertProductionChatStoreConfigured();
   await fs.mkdir(dataDirectory, { recursive: true });
 
   const temporaryFile = `${chatMessagesFile}.tmp`;
   await fs.writeFile(temporaryFile, JSON.stringify(messages, null, 2), "utf8");
   await fs.rename(temporaryFile, chatMessagesFile);
+}
+
+async function readChatMessages() {
+  return shouldUsePostgres() ? readPostgresChatMessages() : readJsonChatMessages();
+}
+
+async function writeChatMessages(messages: ChatMessage[]) {
+  if (shouldUsePostgres()) {
+    await writePostgresChatMessages(messages);
+    return;
+  }
+
+  await writeJsonChatMessages(messages);
 }
 
 function sortMessagesAscending(messages: ChatMessage[]) {

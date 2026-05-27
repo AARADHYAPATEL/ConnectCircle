@@ -38,6 +38,10 @@ Connection requests, friendships, and blocked-user records also use Postgres
 when `DATABASE_URL` or `POSTGRES_URL` is configured. Local development without
 a database keeps using `.data/connections.json`.
 
+Direct chat messages and their image/video attachment metadata also use
+Postgres when `DATABASE_URL` or `POSTGRES_URL` is configured. Local development
+without a database keeps using `.data/chat-messages.json`.
+
 ## Migrating Existing Local Users
 
 After adding `DATABASE_URL` to `.env.local`, run:
@@ -49,6 +53,14 @@ npm run migrate:users
 This imports `.data/users.json` into Postgres. Existing password hashes are not
 exposed or converted during import. If an old account logs in successfully, the
 app upgrades that password hash to the current scrypt work factor.
+
+To import local connection and direct-message history into the same database,
+run:
+
+```bash
+npm run migrate:connections
+npm run migrate:chat
+```
 
 ## Password Storage
 
@@ -65,11 +77,9 @@ after a successful password login.
 
 ## Still To Migrate
 
-This file only covers student user accounts and password hashes. These app
-areas still use local `.data` files and should be migrated before real
-production:
+These app areas still use local `.data` files and should be migrated before
+real production:
 
-- chat messages and media metadata
 - circles
 - mood entries and shared moods
 - reports and admin accounts

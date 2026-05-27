@@ -140,10 +140,10 @@ Before modifying code:
 
 ## Current Development State
 Fill in:
-- Current task: Started Vercel production readiness by moving student user/password storage behind durable Postgres when configured, while keeping local JSON fallback for development.
-- Recently changed files: User account type/store helpers; auth store password hashing/storage path; Postgres users schema; local user migration script; production auth storage guide; package dependencies/scripts; environment example; project context.
-- Known bugs: None known from this pass yet; lint/build still need to be rerun after the auth storage migration.
-- Next steps: Configure a Vercel Marketplace Postgres database, set `DATABASE_URL` or `POSTGRES_URL`, run `npm run migrate:users`, then migrate remaining `.data` stores before real production.
+- Current task: Investigated missing production direct messages and moved direct chat storage behind durable Postgres when configured, while keeping local JSON fallback for development.
+- Recently changed files: User account type/store helpers; auth store password hashing/storage path; Postgres users and connection schemas; direct chat store; local user/connection/chat migration scripts; production auth storage guide; package dependencies/scripts; environment example; project context.
+- Known bugs: Direct messages were previously stored only in `.data/chat-messages.json`, which is not durable/shared on Vercel. Chat storage now supports Postgres, but production history still needs `npm run migrate:chat` against the production database before deployed users can see migrated old messages.
+- Next steps: Configure a Vercel Marketplace Postgres database, set `DATABASE_URL` or `POSTGRES_URL`, run `npm run migrate:users`, `npm run migrate:connections`, and `npm run migrate:chat`, then migrate remaining `.data` stores before real production.
 
 ## File Map
 Fill in after scanning repo:
