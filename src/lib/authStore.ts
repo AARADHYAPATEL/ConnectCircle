@@ -572,7 +572,7 @@ export async function searchUsersByUsername(query: string, options?: {
 }) {
   const cleanQuery = normalizeUsernameKey(query);
 
-  if (cleanQuery.length < 2) {
+  if (cleanQuery.length < 1) {
     return [];
   }
 

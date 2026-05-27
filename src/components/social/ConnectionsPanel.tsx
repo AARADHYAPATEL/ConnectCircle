@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type {
   BlockedConnection,
+  ConnectionRelationship,
   ConnectionRequest,
   ConnectionSummary,
   Friendship,
@@ -16,6 +17,19 @@ type ConnectionsPanelProps = {
 
 type RequestAction = "accept" | "decline";
 type FriendAction = "remove" | "block" | "unblock" | "remove_block";
+
+type UsernameSuggestion = {
+  avatarImage: string;
+  displayName: string;
+  id: string;
+  profileDetailsVisible: boolean;
+  relationship: ConnectionRelationship;
+  username: string;
+};
+
+type UsernameSuggestionResponse = {
+  results: UsernameSuggestion[];
+};
 
 const emptySummary: ConnectionSummary = {
   incomingRequests: [],
@@ -50,6 +64,31 @@ function getReportHref(username: string) {
   return `/people/${encodeURIComponent(username)}/report`;
 }
 
+function getRelationshipCopy(relationship: ConnectionRelationship) {
+  switch (relationship) {
+    case "blocked":
+      return "Blocked";
+    case "connected":
+      return "Connected";
+    case "incoming_request":
+      return "Invitation received";
+    case "none":
+      return "Available";
+    case "outgoing_request":
+      return "Invitation pending";
+  }
+}
+
+function getInitials(displayName: string, username: string) {
+  const words = (displayName || username)
+    .split(/[\s_]+/)
+    .filter(Boolean)
+    .slice(0, 2);
+  const initials = words.map((word) => word[0]?.toUpperCase()).join("");
+
+  return initials || username[0]?.toUpperCase() || "C";
+}
+
 async function readErrorMessage(response: Response) {
   try {
     const data: { error?: string } = await response.json();
@@ -63,6 +102,13 @@ async function readErrorMessage(response: Response) {
 export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
   const [summary, setSummary] = useState<ConnectionSummary>(emptySummary);
   const [targetUsername, setTargetUsername] = useState("");
+  const [usernameSuggestions, setUsernameSuggestions] = useState<
+    UsernameSuggestion[]
+  >([]);
+  const [isSuggestionListOpen, setIsSuggestionListOpen] = useState(false);
+  const [isSuggestingUsernames, setIsSuggestingUsernames] = useState(false);
+  const [usernameSuggestionError, setUsernameSuggestionError] = useState("");
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [respondingRequestId, setRespondingRequestId] = useState<string | null>(
@@ -77,7 +123,18 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
   const [successMessage, setSuccessMessage] = useState("");
 
   const trimmedTargetUsername = targetUsername.trim();
-  const canSendRequest = trimmedTargetUsername.length > 0 && !isSending;
+  const canSuggestUsernames = trimmedTargetUsername.length > 0;
+  const selectedSuggestion = usernameSuggestions.find(
+    (suggestion) =>
+      suggestion.username.toLowerCase() ===
+      trimmedTargetUsername.toLowerCase(),
+  );
+  const canSendRequest =
+    trimmedTargetUsername.length > 0 &&
+    !isSending &&
+    (!selectedSuggestion || selectedSuggestion.relationship === "none");
+  const shouldShowUsernameSuggestions =
+    isSuggestionListOpen && canSuggestUsernames;
   const sortedFriends = useMemo(
     () =>
       [...summary.friends].sort((first, second) =>
@@ -178,6 +235,62 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
     };
   }, [openBlockedMenuId, openFriendMenuId]);
 
+  useEffect(() => {
+    if (!canSuggestUsernames || !isSuggestionListOpen) {
+      return;
+    }
+
+    let isActive = true;
+    const timeoutId = window.setTimeout(async () => {
+      setIsSuggestingUsernames(true);
+      setUsernameSuggestionError("");
+
+      try {
+        const response = await fetch(
+          `/api/people/search?q=${encodeURIComponent(trimmedTargetUsername)}`,
+          { cache: "no-store" },
+        );
+
+        if (!response.ok) {
+          throw new Error(await readErrorMessage(response));
+        }
+
+        const data: UsernameSuggestionResponse = await response.json();
+
+        if (isActive) {
+          setUsernameSuggestions(data.results.slice(0, 5));
+          setActiveSuggestionIndex(-1);
+        }
+      } catch (suggestionError) {
+        if (isActive) {
+          setUsernameSuggestions([]);
+          setUsernameSuggestionError(
+            suggestionError instanceof Error
+              ? suggestionError.message
+              : "Username suggestions could not be loaded.",
+          );
+        }
+      } finally {
+        if (isActive) {
+          setIsSuggestingUsernames(false);
+        }
+      }
+    }, 160);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [canSuggestUsernames, isSuggestionListOpen, trimmedTargetUsername]);
+
+  function handleSuggestionSelect(suggestion: UsernameSuggestion) {
+    setTargetUsername(suggestion.username);
+    setIsSuggestionListOpen(false);
+    setActiveSuggestionIndex(-1);
+    setError("");
+    setSuccessMessage("");
+  }
+
   async function handleSendRequest() {
     if (!canSendRequest) {
       return;
@@ -201,6 +314,8 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
       }
 
       setTargetUsername("");
+      setUsernameSuggestions([]);
+      setIsSuggestionListOpen(false);
       setSuccessMessage(`Connection request sent to @${trimmedTargetUsername}.`);
       await loadConnections();
     } catch (requestError) {
@@ -340,22 +455,179 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
             Username
           </label>
           <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-            <input
-              className="min-h-12 flex-1 rounded-md border border-slate-300 bg-slate-50 px-3 py-3 text-base font-semibold text-slate-950 outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-200"
-              id="connection-username"
-              onChange={(event) => {
-                setTargetUsername(event.target.value);
-                setError("");
-                setSuccessMessage("");
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  void handleSendRequest();
+            <div className="relative min-w-0 flex-1">
+              <input
+                aria-activedescendant={
+                  activeSuggestionIndex >= 0
+                    ? `connection-username-suggestion-${activeSuggestionIndex}`
+                    : undefined
                 }
-              }}
-              placeholder="friend_username"
-              value={targetUsername}
-            />
+                aria-autocomplete="list"
+                aria-controls="connection-username-suggestions"
+                aria-expanded={shouldShowUsernameSuggestions}
+                className="min-h-12 w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-3 text-base font-semibold text-slate-950 outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-200"
+                id="connection-username"
+                onBlur={() => {
+                  window.setTimeout(() => setIsSuggestionListOpen(false), 120);
+                }}
+                onChange={(event) => {
+                  const nextTargetUsername = event.target.value;
+
+                  setTargetUsername(nextTargetUsername);
+                  setIsSuggestionListOpen(nextTargetUsername.trim().length > 0);
+                  if (!nextTargetUsername.trim()) {
+                    setUsernameSuggestions([]);
+                    setIsSuggestingUsernames(false);
+                    setUsernameSuggestionError("");
+                    setActiveSuggestionIndex(-1);
+                  }
+                  setError("");
+                  setSuccessMessage("");
+                }}
+                onFocus={() => {
+                  if (trimmedTargetUsername.length > 0) {
+                    setIsSuggestionListOpen(true);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    shouldShowUsernameSuggestions &&
+                    usernameSuggestions.length > 0 &&
+                    event.key === "ArrowDown"
+                  ) {
+                    event.preventDefault();
+                    setActiveSuggestionIndex((currentIndex) =>
+                      currentIndex + 1 >= usernameSuggestions.length
+                        ? 0
+                        : currentIndex + 1,
+                    );
+                    return;
+                  }
+
+                  if (
+                    shouldShowUsernameSuggestions &&
+                    usernameSuggestions.length > 0 &&
+                    event.key === "ArrowUp"
+                  ) {
+                    event.preventDefault();
+                    setActiveSuggestionIndex((currentIndex) =>
+                      currentIndex <= 0
+                        ? usernameSuggestions.length - 1
+                        : currentIndex - 1,
+                    );
+                    return;
+                  }
+
+                  if (event.key === "Escape") {
+                    setIsSuggestionListOpen(false);
+                    setActiveSuggestionIndex(-1);
+                    return;
+                  }
+
+                  if (event.key === "Enter") {
+                    if (
+                      shouldShowUsernameSuggestions &&
+                      activeSuggestionIndex >= 0 &&
+                      usernameSuggestions[activeSuggestionIndex]
+                    ) {
+                      event.preventDefault();
+                      handleSuggestionSelect(
+                        usernameSuggestions[activeSuggestionIndex],
+                      );
+                      return;
+                    }
+
+                    void handleSendRequest();
+                  }
+                }}
+                placeholder="friend_username"
+                role="combobox"
+                value={targetUsername}
+              />
+
+              {shouldShowUsernameSuggestions ? (
+                <div
+                  className="absolute left-0 right-0 z-40 mt-2 overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl shadow-slate-950/10"
+                  id="connection-username-suggestions"
+                  role="listbox"
+                >
+                  {isSuggestingUsernames ? (
+                    <p className="px-3 py-3 text-sm font-semibold text-slate-500">
+                      Searching...
+                    </p>
+                  ) : null}
+
+                  {!isSuggestingUsernames && usernameSuggestionError ? (
+                    <p className="px-3 py-3 text-sm font-semibold text-rose-700">
+                      {usernameSuggestionError}
+                    </p>
+                  ) : null}
+
+                  {!isSuggestingUsernames &&
+                  !usernameSuggestionError &&
+                  usernameSuggestions.length === 0 ? (
+                    <p className="px-3 py-3 text-sm font-semibold text-slate-500">
+                      No matching usernames.
+                    </p>
+                  ) : null}
+
+                  {usernameSuggestions.map((suggestion, suggestionIndex) => {
+                    const isActive =
+                      activeSuggestionIndex === suggestionIndex;
+                    const avatarStyle =
+                      suggestion.profileDetailsVisible &&
+                      suggestion.avatarImage
+                        ? {
+                            backgroundImage: `url(${JSON.stringify(
+                              suggestion.avatarImage,
+                            )})`,
+                          }
+                        : undefined;
+
+                    return (
+                      <button
+                        aria-selected={isActive}
+                        className={`flex w-full items-center gap-3 px-3 py-3 text-left transition ${
+                          isActive
+                            ? "bg-teal-50 text-teal-950"
+                            : "text-slate-950 hover:bg-slate-50"
+                        }`}
+                        id={`connection-username-suggestion-${suggestionIndex}`}
+                        key={suggestion.id}
+                        onClick={() => handleSuggestionSelect(suggestion)}
+                        onMouseDown={(event) => event.preventDefault()}
+                        role="option"
+                        type="button"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-teal-200 bg-teal-50 bg-cover bg-center text-xs font-black text-teal-800"
+                          style={avatarStyle}
+                        >
+                          {suggestion.profileDetailsVisible &&
+                          suggestion.avatarImage
+                            ? null
+                            : getInitials(
+                                suggestion.profileDetailsVisible
+                                  ? suggestion.displayName
+                                  : "",
+                                suggestion.username,
+                              )}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-bold">
+                            @{suggestion.username}
+                          </span>
+                          <span className="mt-0.5 block text-xs font-semibold text-slate-500">
+                            {getRelationshipCopy(suggestion.relationship)}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
             <button
               className="btn btn-primary"
               disabled={!canSendRequest}
