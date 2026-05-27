@@ -539,61 +539,73 @@ function MoodOrbit({ clusters }: { clusters: MoodCluster[] }) {
         </div>
       </div>
 
-      <div className="relative mx-auto mt-6 grid aspect-square max-w-md place-items-center overflow-hidden rounded-md border border-slate-200 bg-slate-50 p-8">
-        <div
-          aria-hidden="true"
-          className="absolute inset-[14%] rounded-full border border-dashed border-teal-200"
-        />
-        <div
-          aria-hidden="true"
-          className="absolute inset-[27%] rounded-full border border-dashed border-amber-200"
-        />
-        {hasClusters ? (
+      {!hasClusters ? (
+        <div className="mt-6 rounded-md border border-dashed border-slate-200 bg-slate-50 p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div
+              aria-hidden="true"
+              className="relative h-12 w-12 shrink-0 rounded-full border border-teal-200 bg-white"
+            >
+              <span className="absolute inset-[9px] rounded-full border border-amber-200" />
+              <span className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-teal-400" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-900">
+                No repeated moods yet.
+              </p>
+              <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
+                This range has no recurring mood pattern.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="relative mx-auto mt-6 grid aspect-square max-w-md place-items-center overflow-hidden rounded-md border border-slate-200 bg-slate-50 p-8">
+          <div
+            aria-hidden="true"
+            className="absolute inset-[14%] rounded-full border border-dashed border-teal-200"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-[27%] rounded-full border border-dashed border-amber-200"
+          />
           <div
             aria-hidden="true"
             className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-300"
           />
-        ) : null}
 
-        {!hasClusters ? (
-          <div className="relative z-10 max-w-56 rounded-md border border-slate-200 bg-white p-4 text-center shadow-sm">
-            <p className="text-sm font-bold leading-6 text-slate-800">
-              No repeated moods yet.
-            </p>
-          </div>
-        ) : null}
+          {clusters.map((cluster) => {
+            const size = 3.6 + (cluster.count / largestCount) * 4.4;
 
-        {clusters.map((cluster) => {
-          const size = 3.6 + (cluster.count / largestCount) * 4.4;
-
-          return (
-            <div
-              className="absolute -translate-x-1/2 -translate-y-1/2"
-              key={cluster.mood}
-              style={{
-                left: `${cluster.x}%`,
-                top: `${cluster.y}%`,
-              }}
-            >
+            return (
               <div
-                className={`grid place-items-center rounded-full bg-gradient-to-br ${cluster.tone} p-3 text-center font-bold text-white shadow-lg`}
+                className="absolute -translate-x-1/2 -translate-y-1/2"
+                key={cluster.mood}
                 style={{
-                  height: `${size}rem`,
-                  width: `${size}rem`,
+                  left: `${cluster.x}%`,
+                  top: `${cluster.y}%`,
                 }}
-                title={`${cluster.mood}: ${cluster.count}`}
               >
-                <span className="max-w-24 text-xs leading-tight">
-                  {cluster.mood}
-                </span>
+                <div
+                  className={`grid place-items-center rounded-full bg-gradient-to-br ${cluster.tone} p-3 text-center font-bold text-white shadow-lg`}
+                  style={{
+                    height: `${size}rem`,
+                    width: `${size}rem`,
+                  }}
+                  title={`${cluster.mood}: ${cluster.count}`}
+                >
+                  <span className="max-w-24 text-xs leading-tight">
+                    {cluster.mood}
+                  </span>
+                </div>
+                <p className="mt-1 text-center text-xs font-bold text-slate-500">
+                  {cluster.count}x
+                </p>
               </div>
-              <p className="mt-1 text-center text-xs font-bold text-slate-500">
-                {cluster.count}x
-              </p>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }
