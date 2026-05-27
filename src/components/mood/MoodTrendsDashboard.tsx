@@ -196,7 +196,10 @@ function buildBuckets(range: TrendRange, entries: SavedMoodEntry[]) {
   });
 }
 
-function getMoodClusters(entries: SavedMoodEntry[]) {
+function getMoodClusters(
+  entries: SavedMoodEntry[],
+  options: { repeatedOnly?: boolean } = {},
+) {
   const moodCounts = new Map<string, number>();
 
   entries.forEach((entry) => {
@@ -204,21 +207,24 @@ function getMoodClusters(entries: SavedMoodEntry[]) {
     moodCounts.set(mood, (moodCounts.get(mood) ?? 0) + 1);
   });
 
-  return [...moodCounts.entries()]
+  const clusterEntries = [...moodCounts.entries()]
+    .filter(([, count]) => !options.repeatedOnly || count > 1)
     .sort((first, second) => second[1] - first[1])
-    .slice(0, 6)
-    .map(([mood, count], index): MoodCluster => {
-      const angle = (Math.PI * 2 * index) / Math.max(1, moodCounts.size) - Math.PI / 2;
-      const radius = index === 0 ? 0 : 37 + (index % 2) * 18;
+    .slice(0, 6);
 
-      return {
-        count,
-        mood,
-        tone: moodTones[index % moodTones.length],
-        x: 50 + Math.cos(angle) * radius,
-        y: 50 + Math.sin(angle) * radius,
-      };
-    });
+  return clusterEntries.map(([mood, count], index): MoodCluster => {
+    const clusterCount = clusterEntries.length;
+    const angle = (Math.PI * 2 * index) / Math.max(1, clusterCount) - Math.PI / 2;
+    const radius = index === 0 ? 0 : 37 + (index % 2) * 18;
+
+    return {
+      count,
+      mood,
+      tone: moodTones[index % moodTones.length],
+      x: 50 + Math.cos(angle) * radius,
+      y: 50 + Math.sin(angle) * radius,
+    };
+  });
 }
 
 function getMostFrequentMood(entries: SavedMoodEntry[]) {
@@ -369,7 +375,7 @@ export function MoodTrendsDashboard({
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_1fr]">
-        <MoodOrbit clusters={getMoodClusters(rangeEntries)} />
+        <MoodOrbit clusters={getMoodClusters(rangeEntries, { repeatedOnly: true })} />
         <SupportSignalBars supportCounts={supportCounts} total={checkInCount} />
       </div>
 
@@ -518,6 +524,7 @@ function TrendSkyline({ buckets }: { buckets: TrendBucket[] }) {
 
 function MoodOrbit({ clusters }: { clusters: MoodCluster[] }) {
   const largestCount = Math.max(...clusters.map((cluster) => cluster.count), 1);
+  const hasClusters = clusters.length > 0;
 
   return (
     <section className="motion-panel rounded-md border border-slate-200 bg-white p-5 shadow-sm">
@@ -532,15 +539,28 @@ function MoodOrbit({ clusters }: { clusters: MoodCluster[] }) {
         </div>
       </div>
 
-      <div className="relative mx-auto mt-6 aspect-square max-w-md overflow-hidden rounded-md border border-slate-200 bg-slate-50">
-        <div className="absolute inset-[14%] rounded-full border border-dashed border-teal-200" />
-        <div className="absolute inset-[27%] rounded-full border border-dashed border-amber-200" />
-        <div className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-300" />
+      <div className="relative mx-auto mt-6 grid aspect-square max-w-md place-items-center overflow-hidden rounded-md border border-slate-200 bg-slate-50 p-8">
+        <div
+          aria-hidden="true"
+          className="absolute inset-[14%] rounded-full border border-dashed border-teal-200"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-[27%] rounded-full border border-dashed border-amber-200"
+        />
+        {hasClusters ? (
+          <div
+            aria-hidden="true"
+            className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-300"
+          />
+        ) : null}
 
-        {clusters.length === 0 ? (
-          <p className="absolute inset-x-8 top-1/2 -translate-y-1/2 text-center text-sm font-semibold leading-6 text-slate-600">
-            No repeated moods in this range yet.
-          </p>
+        {!hasClusters ? (
+          <div className="relative z-10 max-w-56 rounded-md border border-slate-200 bg-white p-4 text-center shadow-sm">
+            <p className="text-sm font-bold leading-6 text-slate-800">
+              No repeated moods yet.
+            </p>
+          </div>
         ) : null}
 
         {clusters.map((cluster) => {

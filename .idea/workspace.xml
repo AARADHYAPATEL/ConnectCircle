@@ -4,8 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="Shifting from Neon to Turso">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="Deleting junk files">
+      <change beforePath="$PROJECT_DIR$/src/components/mood/MoodTrendsDashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/mood/MoodTrendsDashboard.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -141,7 +141,7 @@
       <workItem from="1778313750706" duration="5247000" />
       <workItem from="1779872863532" duration="189000" />
       <workItem from="1779873094911" duration="2289000" />
-      <workItem from="1779876690063" duration="7675000" />
+      <workItem from="1779876690063" duration="7990000" />
     </task>
     <task id="LOCAL-00001" summary="This is ConnectCircle, where students can share their mood, send supportive messages to friends and build stronger peer relationships.">
       <option name="closed" value="true" />
@@ -239,7 +239,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779896419397</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="Deleting junk files">
+      <option name="closed" value="true" />
+      <created>1779897537589</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1779897537589</updated>
+    </task>
+    <option name="localTasksCounter" value="14" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -265,7 +273,8 @@
     <MESSAGE value="Fixing messages" />
     <MESSAGE value="Adding username suggestions when typing username to connect" />
     <MESSAGE value="Shifting from Neon to Turso" />
-    <option name="LAST_COMMIT_MESSAGE" value="Shifting from Neon to Turso" />
+    <MESSAGE value="Deleting junk files" />
+    <option name="LAST_COMMIT_MESSAGE" value="Deleting junk files" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>
