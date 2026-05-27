@@ -4,6 +4,11 @@ import path from "node:path";
 import type { ChatMediaAttachment } from "@/lib/chatImageAttachments";
 import { getFriendUsernames } from "@/lib/connectionStore";
 import {
+  readTursoJsonDocument,
+  shouldUseTurso,
+  writeTursoJsonDocument,
+} from "@/lib/tursoStore";
+import {
   circleDescriptionLimit,
   circleMessageLimit,
   circleNameLimit,
@@ -20,6 +25,7 @@ import {
 
 const dataDirectory = path.join(process.cwd(), ".data");
 const circlesFile = path.join(dataDirectory, "circles.json");
+const tursoCirclesDocumentKey = "circles";
 
 type CircleData = {
   circles: Circle[];
@@ -140,6 +146,28 @@ function joinRequestWithCircle(
 }
 
 async function readCircleData(): Promise<CircleData> {
+  if (shouldUseTurso()) {
+    return readTursoJsonDocument<CircleData>(
+      tursoCirclesDocumentKey,
+      { circles: [], joinRequests: [], messages: [] },
+      (value) => {
+        if (!isCircleData(value)) {
+          return { circles: [], joinRequests: [], messages: [] };
+        }
+
+        return {
+          circles: value.circles.filter(isCircle),
+          joinRequests: Array.isArray(value.joinRequests)
+            ? value.joinRequests.filter(isCircleJoinRequest)
+            : [],
+          messages: Array.isArray(value.messages)
+            ? value.messages.filter(isCircleMessage)
+            : [],
+        };
+      },
+    );
+  }
+
   try {
     const file = await fs.readFile(circlesFile, "utf8");
     const parsed: unknown = JSON.parse(file);
@@ -167,6 +195,11 @@ async function readCircleData(): Promise<CircleData> {
 }
 
 async function writeCircleData(data: CircleData) {
+  if (shouldUseTurso()) {
+    await writeTursoJsonDocument(tursoCirclesDocumentKey, data);
+    return;
+  }
+
   await fs.mkdir(dataDirectory, { recursive: true });
 
   const temporaryFile = `${circlesFile}.tmp`;

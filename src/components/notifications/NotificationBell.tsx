@@ -180,7 +180,7 @@ export function NotificationBell({ summary }: NotificationBellProps) {
     const intervalId = window.setInterval(refreshTime, 60000);
     const notificationIntervalId = window.setInterval(
       refreshNotifications,
-      30000,
+      120000,
     );
 
     function handlePointerDown(event: PointerEvent) {

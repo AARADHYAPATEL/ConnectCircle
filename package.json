@@ -9,9 +9,12 @@
     "lint": "eslint",
     "migrate:users": "node scripts/migrate-users-to-postgres.mjs",
     "migrate:connections": "node scripts/migrate-connections-to-postgres.mjs",
-    "migrate:chat": "node scripts/migrate-chat-to-postgres.mjs"
+    "migrate:chat": "node scripts/migrate-chat-to-postgres.mjs",
+    "migrate:turso": "node scripts/migrate-local-data-to-turso.mjs",
+    "migrate:postgres-to-turso": "node scripts/migrate-postgres-to-turso.mjs"
   },
   "dependencies": {
+    "@libsql/client": "^0.17.3",
     "next": "latest",
     "pg": "^8.20.0",
     "react": "latest",

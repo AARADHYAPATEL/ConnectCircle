@@ -1,6 +1,11 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { Pool, type QueryResultRow } from "pg";
+import {
+  readTursoJsonDocument,
+  shouldUseTurso,
+  writeTursoJsonDocument,
+} from "@/lib/tursoStore";
 import type { AuthProvider, UserAccount } from "@/lib/userAccountTypes";
 
 const dataDirectory = path.join(process.cwd(), ".data");
@@ -11,6 +16,8 @@ const userLoginAttemptsFile = path.join(
 );
 const usersTable = "connectcircle_users";
 const userLoginAttemptsTable = "connectcircle_user_login_attempts";
+const tursoUsersDocumentKey = "users";
+const tursoUserLoginAttemptsDocumentKey = "user-login-attempts";
 const maxFailedLoginAttempts = 5;
 const loginWindowMs = 15 * 60 * 1000;
 const loginLockMs = 15 * 60 * 1000;
@@ -100,12 +107,13 @@ function shouldUsePostgres() {
 
 function assertProductionUserStoreConfigured() {
   if (
+    !shouldUseTurso() &&
     !shouldUsePostgres() &&
     (process.env.VERCEL === "1" ||
       process.env.CONNECTCIRCLE_REQUIRE_DATABASE === "true")
   ) {
     throw new Error(
-      "ConnectCircle user storage is not configured. Set DATABASE_URL or POSTGRES_URL before running in production.",
+      "ConnectCircle user storage is not configured. Set TURSO_DATABASE_URL, DATABASE_URL, or POSTGRES_URL before running in production.",
     );
   }
 }
@@ -307,6 +315,38 @@ async function writeJsonLoginAttempts(attempts: UserLoginAttempt[]) {
   const temporaryFile = `${userLoginAttemptsFile}.tmp`;
   await fs.writeFile(temporaryFile, JSON.stringify(attempts, null, 2), "utf8");
   await fs.rename(temporaryFile, userLoginAttemptsFile);
+}
+
+function validateUsersDocument(value: unknown) {
+  return Array.isArray(value) ? value.filter(isUserAccount) : [];
+}
+
+function validateLoginAttemptsDocument(value: unknown) {
+  return Array.isArray(value) ? value.filter(isUserLoginAttempt) : [];
+}
+
+async function readTursoUsers() {
+  return readTursoJsonDocument<UserAccount[]>(
+    tursoUsersDocumentKey,
+    [],
+    validateUsersDocument,
+  );
+}
+
+async function writeTursoUsers(users: UserAccount[]) {
+  await writeTursoJsonDocument(tursoUsersDocumentKey, users);
+}
+
+async function readTursoLoginAttempts() {
+  return readTursoJsonDocument<UserLoginAttempt[]>(
+    tursoUserLoginAttemptsDocumentKey,
+    [],
+    validateLoginAttemptsDocument,
+  );
+}
+
+async function writeTursoLoginAttempts(attempts: UserLoginAttempt[]) {
+  await writeTursoJsonDocument(tursoUserLoginAttemptsDocumentKey, attempts);
 }
 
 async function readPostgresUsers() {
@@ -556,10 +596,20 @@ async function clearPostgresLoginFailures(emailKey: string) {
 }
 
 export async function getAllUserAccounts() {
+  if (shouldUseTurso()) {
+    return readTursoUsers();
+  }
+
   return shouldUsePostgres() ? readPostgresUsers() : readJsonUsers();
 }
 
 export async function findUserAccountById(userId: string) {
+  if (shouldUseTurso()) {
+    const users = await readTursoUsers();
+
+    return users.find((user) => user.id === userId) ?? null;
+  }
+
   if (shouldUsePostgres()) {
     return findPostgresUserById(userId);
   }
@@ -570,6 +620,13 @@ export async function findUserAccountById(userId: string) {
 }
 
 export async function findUserAccountByEmail(email: string) {
+  if (shouldUseTurso()) {
+    const cleanEmail = normalizeEmail(email);
+    const users = await readTursoUsers();
+
+    return users.find((user) => normalizeEmail(user.email) === cleanEmail) ?? null;
+  }
+
   if (shouldUsePostgres()) {
     return findPostgresUserByEmail(email);
   }
@@ -581,6 +638,17 @@ export async function findUserAccountByEmail(email: string) {
 }
 
 export async function findUserAccountByUsernameKey(usernameKey: string) {
+  if (shouldUseTurso()) {
+    const cleanUsernameKey = normalizeUsernameKey(usernameKey);
+    const users = await readTursoUsers();
+
+    return (
+      users.find(
+        (user) => normalizeUsernameKey(user.username) === cleanUsernameKey,
+      ) ?? null
+    );
+  }
+
   if (shouldUsePostgres()) {
     return findPostgresUserByUsernameKey(usernameKey);
   }
@@ -596,6 +664,12 @@ export async function findUserAccountByUsernameKey(usernameKey: string) {
 }
 
 export async function findUserAccountByGoogleSub(googleSub: string) {
+  if (shouldUseTurso()) {
+    const users = await readTursoUsers();
+
+    return users.find((user) => user.googleSub === googleSub) ?? null;
+  }
+
   if (shouldUsePostgres()) {
     return findPostgresUserByGoogleSub(googleSub);
   }
@@ -606,6 +680,12 @@ export async function findUserAccountByGoogleSub(googleSub: string) {
 }
 
 export async function insertUserAccount(user: UserAccount) {
+  if (shouldUseTurso()) {
+    const users = await readTursoUsers();
+    await writeTursoUsers([...users, user]);
+    return;
+  }
+
   if (shouldUsePostgres()) {
     await insertPostgresUser(user);
     return;
@@ -616,6 +696,17 @@ export async function insertUserAccount(user: UserAccount) {
 }
 
 export async function updateUserAccount(user: UserAccount) {
+  if (shouldUseTurso()) {
+    const users = await readTursoUsers();
+
+    await writeTursoUsers(
+      users.map((currentUser) =>
+        currentUser.id === user.id ? user : currentUser,
+      ),
+    );
+    return;
+  }
+
   if (shouldUsePostgres()) {
     await updatePostgresUser(user);
     return;
@@ -638,6 +729,31 @@ export async function searchUserAccountsByUsername({
   limit: number;
   query: string;
 }) {
+  if (shouldUseTurso()) {
+    const cleanQuery = normalizeUsernameKey(query);
+    const users = await readTursoUsers();
+
+    return users
+      .filter((user) => {
+        const usernameKey = normalizeUsernameKey(user.username);
+
+        return usernameKey !== excludeUsernameKey && usernameKey.includes(cleanQuery);
+      })
+      .sort((first, second) => {
+        const firstUsername = normalizeUsernameKey(first.username);
+        const secondUsername = normalizeUsernameKey(second.username);
+        const firstStartsWithQuery = firstUsername.startsWith(cleanQuery);
+        const secondStartsWithQuery = secondUsername.startsWith(cleanQuery);
+
+        if (firstStartsWithQuery !== secondStartsWithQuery) {
+          return firstStartsWithQuery ? -1 : 1;
+        }
+
+        return firstUsername.localeCompare(secondUsername);
+      })
+      .slice(0, limit);
+  }
+
   if (shouldUsePostgres()) {
     return searchPostgresUsersByUsername({ excludeUsernameKey, limit, query });
   }
@@ -668,9 +784,11 @@ export async function searchUserAccountsByUsername({
 
 export async function getUserLoginLockedError(emailKey: string) {
   const cleanEmailKey = normalizeEmail(emailKey);
-  const attempt = shouldUsePostgres()
-    ? await findPostgresLoginAttempt(cleanEmailKey)
-    : getActiveLoginAttempt(await readJsonLoginAttempts(), cleanEmailKey);
+  const attempt = shouldUseTurso()
+    ? getActiveLoginAttempt(await readTursoLoginAttempts(), cleanEmailKey)
+    : shouldUsePostgres()
+      ? await findPostgresLoginAttempt(cleanEmailKey)
+      : getActiveLoginAttempt(await readJsonLoginAttempts(), cleanEmailKey);
   const activeAttempt = attempt
     ? getActiveLoginAttempt([attempt], cleanEmailKey)
     : null;
@@ -695,6 +813,29 @@ export async function getUserLoginLockedError(emailKey: string) {
 
 export async function recordUserLoginFailure(emailKey: string) {
   const cleanEmailKey = normalizeEmail(emailKey);
+
+  if (shouldUseTurso()) {
+    const attempts = await readTursoLoginAttempts();
+    const now = new Date();
+    const activeAttempt = getActiveLoginAttempt(attempts, cleanEmailKey);
+    const nextFailedAttempts = (activeAttempt?.failedAttempts ?? 0) + 1;
+    const nextAttempt: UserLoginAttempt = {
+      emailKey: cleanEmailKey,
+      failedAttempts: nextFailedAttempts,
+      firstFailedAt: activeAttempt?.firstFailedAt ?? now.toISOString(),
+      ...(nextFailedAttempts >= maxFailedLoginAttempts
+        ? {
+            lockedUntil: new Date(now.getTime() + loginLockMs).toISOString(),
+          }
+        : {}),
+    };
+
+    await writeTursoLoginAttempts([
+      nextAttempt,
+      ...attempts.filter((attempt) => attempt.emailKey !== cleanEmailKey),
+    ]);
+    return;
+  }
 
   if (shouldUsePostgres()) {
     await recordPostgresLoginFailure(cleanEmailKey);
@@ -724,6 +865,15 @@ export async function recordUserLoginFailure(emailKey: string) {
 
 export async function clearUserLoginFailures(emailKey: string) {
   const cleanEmailKey = normalizeEmail(emailKey);
+
+  if (shouldUseTurso()) {
+    const attempts = await readTursoLoginAttempts();
+
+    await writeTursoLoginAttempts(
+      attempts.filter((attempt) => attempt.emailKey !== cleanEmailKey),
+    );
+    return;
+  }
 
   if (shouldUsePostgres()) {
     await clearPostgresLoginFailures(cleanEmailKey);

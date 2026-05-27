@@ -3,6 +3,11 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { getFriendUsernames } from "@/lib/connectionStore";
 import {
+  readTursoJsonDocument,
+  shouldUseTurso,
+  writeTursoJsonDocument,
+} from "@/lib/tursoStore";
+import {
   isSupportMessage,
   supportMessageLimit,
   type SupportMessage,
@@ -11,6 +16,7 @@ import {
 
 const dataDirectory = path.join(process.cwd(), ".data");
 const supportMessagesFile = path.join(dataDirectory, "support-messages.json");
+const tursoSupportMessagesDocumentKey = "support-messages";
 
 type SendSupportMessageResult = {
   error: string;
@@ -22,6 +28,14 @@ function areSameUser(firstUsername: string, secondUsername: string) {
 }
 
 async function readSupportMessages() {
+  if (shouldUseTurso()) {
+    return readTursoJsonDocument<SupportMessage[]>(
+      tursoSupportMessagesDocumentKey,
+      [],
+      (value) => (Array.isArray(value) ? value.filter(isSupportMessage) : []),
+    );
+  }
+
   try {
     const file = await fs.readFile(supportMessagesFile, "utf8");
     const parsed: unknown = JSON.parse(file);
@@ -41,6 +55,11 @@ async function readSupportMessages() {
 }
 
 async function writeSupportMessages(messages: SupportMessage[]) {
+  if (shouldUseTurso()) {
+    await writeTursoJsonDocument(tursoSupportMessagesDocumentKey, messages);
+    return;
+  }
+
   await fs.mkdir(dataDirectory, { recursive: true });
 
   const temporaryFile = `${supportMessagesFile}.tmp`;

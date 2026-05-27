@@ -7,6 +7,11 @@ import {
 } from "node:crypto";
 import path from "node:path";
 import { promisify } from "node:util";
+import {
+  readTursoJsonDocument,
+  shouldUseTurso,
+  writeTursoJsonDocument,
+} from "@/lib/tursoStore";
 
 const scrypt = promisify(scryptCallback);
 const dataDirectory = path.join(process.cwd(), ".data");
@@ -15,6 +20,8 @@ const adminLoginAttemptsFile = path.join(
   dataDirectory,
   "admin-login-attempts.json",
 );
+const tursoAdminUsersDocumentKey = "admin-users";
+const tursoAdminLoginAttemptsDocumentKey = "admin-login-attempts";
 const adminMaxFailedLoginAttempts = 5;
 const adminLoginWindowMs = 15 * 60 * 1000;
 const adminLoginLockMs = 15 * 60 * 1000;
@@ -80,6 +87,14 @@ async function hashPassword(password: string, salt: string) {
 }
 
 async function readAdminUsers() {
+  if (shouldUseTurso()) {
+    return readTursoJsonDocument<AdminUser[]>(
+      tursoAdminUsersDocumentKey,
+      [],
+      (value) => (Array.isArray(value) ? value.filter(isAdminUser) : []),
+    );
+  }
+
   try {
     const file = await fs.readFile(adminUsersFile, "utf8");
     const parsed: unknown = JSON.parse(file);
@@ -99,6 +114,11 @@ async function readAdminUsers() {
 }
 
 async function writeAdminUsers(admins: AdminUser[]) {
+  if (shouldUseTurso()) {
+    await writeTursoJsonDocument(tursoAdminUsersDocumentKey, admins);
+    return;
+  }
+
   await fs.mkdir(dataDirectory, { recursive: true });
 
   const temporaryFile = `${adminUsersFile}.tmp`;
@@ -107,6 +127,15 @@ async function writeAdminUsers(admins: AdminUser[]) {
 }
 
 async function readAdminLoginAttempts() {
+  if (shouldUseTurso()) {
+    return readTursoJsonDocument<AdminLoginAttempt[]>(
+      tursoAdminLoginAttemptsDocumentKey,
+      [],
+      (value) =>
+        Array.isArray(value) ? value.filter(isAdminLoginAttempt) : [],
+    );
+  }
+
   try {
     const file = await fs.readFile(adminLoginAttemptsFile, "utf8");
     const parsed: unknown = JSON.parse(file);
@@ -126,6 +155,14 @@ async function readAdminLoginAttempts() {
 }
 
 async function writeAdminLoginAttempts(attempts: AdminLoginAttempt[]) {
+  if (shouldUseTurso()) {
+    await writeTursoJsonDocument(
+      tursoAdminLoginAttemptsDocumentKey,
+      attempts,
+    );
+    return;
+  }
+
   await fs.mkdir(dataDirectory, { recursive: true });
 
   const temporaryFile = `${adminLoginAttemptsFile}.tmp`;
@@ -403,4 +440,3 @@ function isAdminLoginAttempt(value: unknown): value is AdminLoginAttempt {
       typeof attempt.lockedUntil === "string")
   );
 }
-

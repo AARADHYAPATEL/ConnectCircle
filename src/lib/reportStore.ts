@@ -9,6 +9,11 @@ import { getUserByUsername } from "@/lib/authStore";
 import { getChatMessageForReport } from "@/lib/chatStore";
 import { getCircleMessageForReport } from "@/lib/circleStore";
 import {
+  readTursoJsonDocument,
+  shouldUseTurso,
+  writeTursoJsonDocument,
+} from "@/lib/tursoStore";
+import {
   isReportContextType,
   isReportReason,
   isReportStatus,
@@ -23,6 +28,7 @@ import {
 
 const dataDirectory = path.join(process.cwd(), ".data");
 const reportsFile = path.join(dataDirectory, "reports.json");
+const tursoReportsDocumentKey = "reports";
 
 type CreateSafetyReportInput = {
   contextId: unknown;
@@ -77,6 +83,14 @@ function isSafetyReport(value: unknown): value is SafetyReport {
 }
 
 export async function readSafetyReports() {
+  if (shouldUseTurso()) {
+    return readTursoJsonDocument<SafetyReport[]>(
+      tursoReportsDocumentKey,
+      [],
+      (value) => (Array.isArray(value) ? value.filter(isSafetyReport) : []),
+    );
+  }
+
   try {
     const file = await fs.readFile(reportsFile, "utf8");
     const parsed: unknown = JSON.parse(file);
@@ -96,6 +110,11 @@ export async function readSafetyReports() {
 }
 
 async function writeReports(reports: SafetyReport[]) {
+  if (shouldUseTurso()) {
+    await writeTursoJsonDocument(tursoReportsDocumentKey, reports);
+    return;
+  }
+
   await fs.mkdir(dataDirectory, { recursive: true });
 
   const temporaryFile = `${reportsFile}.tmp`;

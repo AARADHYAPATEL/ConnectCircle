@@ -1,66 +1,76 @@
-# ConnectCircle Production Auth Storage
+# ConnectCircle Production Storage
 
-This pass moves student user accounts and password hashes away from local
-`.data/users.json` when a Postgres connection string is configured.
+ConnectCircle now supports Turso/libSQL as the preferred no-cost durable
+database path. Postgres is still supported as a fallback, and local `.data`
+files remain useful for development without a database.
 
 ## Runtime Behavior
 
-- Local development without `DATABASE_URL` keeps using `.data/users.json`.
-- Vercel/production should use Postgres through `DATABASE_URL` or `POSTGRES_URL`.
+- If `TURSO_DATABASE_URL` is configured, the app uses Turso first.
+- If Turso is not configured, `DATABASE_URL` or `POSTGRES_URL` still enables
+  the existing Postgres storage path for users, connections, and direct chat.
+- Local development without a database keeps using `.data` files.
 - If `VERCEL=1` or `CONNECTCIRCLE_REQUIRE_DATABASE=true` and no database URL is
-  configured, user storage throws an error instead of silently using local files.
+  configured for critical stores, the app throws instead of silently using local
+  files.
 
 ## Required Production Variables
 
 Set these in Vercel Project Settings -> Environment Variables:
 
 ```env
-DATABASE_URL=postgres://user:password@host/database?sslmode=require
+TURSO_DATABASE_URL=libsql://your-database.turso.io
+TURSO_AUTH_TOKEN=your-turso-auth-token
 CONNECTCIRCLE_REQUIRE_DATABASE=true
 CONNECTCIRCLE_SESSION_SECRET=replace-this-with-a-long-random-string
 ```
 
-Vercel Marketplace Postgres integrations, such as Neon, may inject
-`POSTGRES_URL` automatically. The app accepts either `DATABASE_URL` or
-`POSTGRES_URL`.
+Turso takes priority when it is present, so you can leave old Postgres variables
+in place while testing. Once Turso production is verified, remove the old
+Postgres variables from Vercel to avoid confusion.
 
 ## Schema
 
-The app creates the `connectcircle_users` and
-`connectcircle_user_login_attempts` tables automatically on first use when
-Postgres is configured. The same schema is also available at:
+Turso uses:
 
-```text
-database/connectcircle-users.sql
+- `connectcircle_chat_messages` for direct messages, with media stored as
+  binary blobs instead of base64 JSON text.
+- `connectcircle_documents` for smaller app stores, compressed with gzip before
+  being saved.
+
+The app creates these tables automatically on first use, and the migration
+script creates them before import.
+
+## Migrating Existing Local Data
+
+Create `.env.turso.local` locally:
+
+```env
+TURSO_DATABASE_URL=libsql://your-database.turso.io
+TURSO_AUTH_TOKEN=your-turso-auth-token
 ```
 
-Connection requests, friendships, and blocked-user records also use Postgres
-when `DATABASE_URL` or `POSTGRES_URL` is configured. Local development without
-a database keeps using `.data/connections.json`.
-
-Direct chat messages and their image/video attachment metadata also use
-Postgres when `DATABASE_URL` or `POSTGRES_URL` is configured. Local development
-without a database keeps using `.data/chat-messages.json`.
-
-## Migrating Existing Local Users
-
-After adding `DATABASE_URL` to `.env.local`, run:
+Then run:
 
 ```bash
-npm run migrate:users
+npm run migrate:turso
 ```
 
-This imports `.data/users.json` into Postgres. Existing password hashes are not
-exposed or converted during import. If an old account logs in successfully, the
-app upgrades that password hash to the current scrypt work factor.
+This imports users, login throttles, connections, direct chat text/media,
+circles, CircleChat data, mood entries, feedback, reports, admin users,
+notifications, presence, and support messages.
 
-To import local connection and direct-message history into the same database,
-run:
+If the current Postgres database has newer production rows than the local
+`.data` files, add both the old Postgres URL and the new Turso variables to
+`.env.local`/`.env.turso.local`, then run:
 
 ```bash
-npm run migrate:connections
-npm run migrate:chat
+npm run migrate:postgres-to-turso
 ```
+
+That imports the Postgres-backed users, login throttles, connections, and direct
+messages into Turso. If the old Neon database is already quota-blocked, this
+step may need to wait until Neon allows reads again.
 
 ## Password Storage
 
@@ -74,13 +84,3 @@ New password accounts use:
 
 The app keeps compatibility with older local password hashes and upgrades them
 after a successful password login.
-
-## Still To Migrate
-
-These app areas still use local `.data` files and should be migrated before
-real production:
-
-- circles
-- mood entries and shared moods
-- reports and admin accounts
-- feedback records, if persisted locally

@@ -84,7 +84,7 @@ Users can:
 - Report another user's CircleChat message from the message actions menu
 - Choose a report reason and optionally add details
 
-Reports are stored privately in `.data/reports.json` with reporter, reported user, reason, context, timestamp, status, and message text/media metadata snapshots for message reports. Duplicate open/reviewing reports from the same reporter for the same context are blocked.
+Reports are stored privately through the configured durable storage path with reporter, reported user, reason, context, timestamp, status, and message text/media metadata snapshots for message reports. Duplicate open/reviewing reports from the same reporter for the same context are blocked.
 
 ### Admin Safety Review
 Admins can:
@@ -96,7 +96,7 @@ Admins can:
 - Add an internal resolution note
 - Download each report as a `.txt` file for offline review or record keeping
 
-Admin access is intentionally separate from student access. Admin users are stored in `.data/admin-users.json` with scrypt password hashes, and the first admin account is bootstrapped from environment variables:
+Admin access is intentionally separate from student access. Admin users are stored through the configured durable storage path with scrypt password hashes, and the first admin account is bootstrapped from environment variables:
 - `CONNECTCIRCLE_ADMIN_USERNAME`
 - `CONNECTCIRCLE_ADMIN_PASSWORD`
 - `CONNECTCIRCLE_ADMIN_SESSION_SECRET`
@@ -126,7 +126,7 @@ Supports:
 - Google account creation/sign-in
 - Separate admin authentication for the safety review area
 
-Student user accounts use durable Postgres storage when `DATABASE_URL` or `POSTGRES_URL` is configured, with `.data/users.json` kept as a local-development fallback. Production/Vercel should set `CONNECTCIRCLE_REQUIRE_DATABASE=true` so the app fails closed instead of silently writing user accounts to local files. Password accounts are stored as salted scrypt hashes with versioned password algorithm metadata; legacy local hashes are still accepted and upgraded after successful login. Student password login attempts are throttled after repeated failures.
+Student user accounts use Turso/libSQL storage when `TURSO_DATABASE_URL` is configured. Postgres remains a fallback when `DATABASE_URL` or `POSTGRES_URL` is configured, with `.data/users.json` kept as a local-development fallback. Production/Vercel should set `CONNECTCIRCLE_REQUIRE_DATABASE=true` so the app fails closed instead of silently writing critical data to local files. Password accounts are stored as salted scrypt hashes with versioned password algorithm metadata; legacy local hashes are still accepted and upgraded after successful login. Student password login attempts are throttled after repeated failures.
 
 Do not assume the auth library until checking the project files.
 
@@ -140,10 +140,10 @@ Before modifying code:
 
 ## Current Development State
 Fill in:
-- Current task: Investigated missing production direct messages and moved direct chat storage behind durable Postgres when configured, while keeping local JSON fallback for development.
-- Recently changed files: User account type/store helpers; auth store password hashing/storage path; Postgres users and connection schemas; direct chat store; local user/connection/chat migration scripts; production auth storage guide; package dependencies/scripts; environment example; project context.
-- Known bugs: Direct messages were previously stored only in `.data/chat-messages.json`, which is not durable/shared on Vercel. Chat storage now supports Postgres, but production history still needs `npm run migrate:chat` against the production database before deployed users can see migrated old messages.
-- Next steps: Configure a Vercel Marketplace Postgres database, set `DATABASE_URL` or `POSTGRES_URL`, run `npm run migrate:users`, `npm run migrate:connections`, and `npm run migrate:chat`, then migrate remaining `.data` stores before real production.
+- Current task: Moving ConnectCircle to a free Turso/libSQL durable storage path while preserving all current local data, text, and media.
+- Recently changed files: Turso storage helper; app storage modules for users, connections, chat, admin, circles, feedback, moods, notifications, presence, reports, and support; local-data and Postgres Turso migration scripts; package dependencies/scripts; production storage guide; environment example; project context.
+- Known bugs: Production will continue to fail on the old Neon quota until Turso credentials are added in Vercel and the app is redeployed with `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN`.
+- Next steps: Create a free Turso database, add credentials to `.env.turso.local`, run `npm run migrate:turso`, add the same credentials to Vercel, then redeploy.
 
 ## File Map
 Fill in after scanning repo:

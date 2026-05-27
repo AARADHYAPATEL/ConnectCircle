@@ -3,6 +3,11 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { sendFeedbackEmail } from "@/lib/feedbackEmail";
 import {
+  readTursoJsonDocument,
+  shouldUseTurso,
+  writeTursoJsonDocument,
+} from "@/lib/tursoStore";
+import {
   feedbackAffectedPageLimit,
   validateFeedbackImageAttachments,
   feedbackMessageLimit,
@@ -17,6 +22,7 @@ import type { PublicUser } from "@/lib/authStore";
 
 const dataDirectory = path.join(process.cwd(), ".data");
 const feedbackFile = path.join(dataDirectory, "feedback.json");
+const tursoFeedbackDocumentKey = "feedback";
 let feedbackMutation = Promise.resolve();
 
 type CreateFeedbackInput = {
@@ -41,6 +47,14 @@ type CreateFeedbackResult =
     };
 
 async function readFeedback() {
+  if (shouldUseTurso()) {
+    return readTursoJsonDocument<SavedFeedback[]>(
+      tursoFeedbackDocumentKey,
+      [],
+      (value) => (Array.isArray(value) ? value.filter(isSavedFeedback) : []),
+    );
+  }
+
   try {
     const file = await fs.readFile(feedbackFile, "utf8");
     const parsed: unknown = JSON.parse(file);
@@ -60,6 +74,11 @@ async function readFeedback() {
 }
 
 async function writeFeedback(feedback: SavedFeedback[]) {
+  if (shouldUseTurso()) {
+    await writeTursoJsonDocument(tursoFeedbackDocumentKey, feedback);
+    return;
+  }
+
   await fs.mkdir(dataDirectory, { recursive: true });
   await fs.writeFile(feedbackFile, JSON.stringify(feedback, null, 2), "utf8");
 }

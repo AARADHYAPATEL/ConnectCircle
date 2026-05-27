@@ -6,10 +6,16 @@ import { getCircleSummaryForUser } from "@/lib/circleStore";
 import { getConnectionSummary } from "@/lib/connectionStore";
 import { getSharedMoodEntries } from "@/lib/moodEntryStore";
 import { getSupportMessageSummary } from "@/lib/supportMessageStore";
+import {
+  readTursoJsonDocument,
+  shouldUseTurso,
+  writeTursoJsonDocument,
+} from "@/lib/tursoStore";
 import type { AppNotification, NotificationSummary } from "@/lib/notificationTypes";
 
 const dataDirectory = path.join(process.cwd(), ".data");
 const notificationStateFile = path.join(dataDirectory, "notification-state.json");
+const tursoNotificationStateDocumentKey = "notification-state";
 const visibleNotificationLimit = 14;
 
 type NotificationState = {
@@ -39,6 +45,15 @@ function isNotificationState(value: unknown): value is NotificationState {
 }
 
 async function readNotificationStates() {
+  if (shouldUseTurso()) {
+    return readTursoJsonDocument<NotificationState[]>(
+      tursoNotificationStateDocumentKey,
+      [],
+      (value) =>
+        Array.isArray(value) ? value.filter(isNotificationState) : [],
+    );
+  }
+
   try {
     const file = await fs.readFile(notificationStateFile, "utf8");
     const parsed: unknown = JSON.parse(file);
@@ -64,6 +79,11 @@ async function wait(milliseconds: number) {
 }
 
 async function writeNotificationStates(states: NotificationState[]) {
+  if (shouldUseTurso()) {
+    await writeTursoJsonDocument(tursoNotificationStateDocumentKey, states);
+    return;
+  }
+
   await fs.mkdir(dataDirectory, { recursive: true });
 
   const temporaryFile = `${notificationStateFile}.${randomUUID()}.tmp`;

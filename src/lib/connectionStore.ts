@@ -2,6 +2,11 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { Pool, type QueryResultRow } from "pg";
+import {
+  readTursoJsonDocument,
+  shouldUseTurso,
+  writeTursoJsonDocument,
+} from "@/lib/tursoStore";
 import type {
   BlockedConnection,
   ConnectionRelationshipSummary,
@@ -15,6 +20,7 @@ const connectionsFile = path.join(dataDirectory, "connections.json");
 const requestsTable = "connectcircle_connection_requests";
 const friendshipsTable = "connectcircle_friendships";
 const blocksTable = "connectcircle_connection_blocks";
+const tursoConnectionsDocumentKey = "connections";
 
 let pool: Pool | null = null;
 let hasEnsuredPostgresSchema = false;
@@ -186,12 +192,13 @@ function shouldUsePostgres() {
 
 function assertProductionConnectionStoreConfigured() {
   if (
+    !shouldUseTurso() &&
     !shouldUsePostgres() &&
     (process.env.VERCEL === "1" ||
       process.env.CONNECTCIRCLE_REQUIRE_DATABASE === "true")
   ) {
     throw new Error(
-      "ConnectCircle connection storage is not configured. Set DATABASE_URL or POSTGRES_URL before running in production.",
+      "ConnectCircle connection storage is not configured. Set TURSO_DATABASE_URL, DATABASE_URL, or POSTGRES_URL before running in production.",
     );
   }
 }
@@ -291,6 +298,32 @@ async function readPostgresConnectionData(): Promise<ConnectionData> {
   };
 }
 
+function validateConnectionDocument(value: unknown): ConnectionData {
+  if (!isConnectionData(value)) {
+    return { requests: [], friendships: [], blocks: [] };
+  }
+
+  return {
+    requests: value.requests.filter(isConnectionRequest),
+    friendships: value.friendships.filter(isFriendship),
+    blocks: Array.isArray(value.blocks)
+      ? value.blocks.filter(isBlockedConnection)
+      : [],
+  };
+}
+
+async function readTursoConnectionData() {
+  return readTursoJsonDocument<ConnectionData>(
+    tursoConnectionsDocumentKey,
+    { requests: [], friendships: [], blocks: [] },
+    validateConnectionDocument,
+  );
+}
+
+async function writeTursoConnectionData(data: ConnectionData) {
+  await writeTursoJsonDocument(tursoConnectionsDocumentKey, data);
+}
+
 async function writePostgresConnectionData(data: ConnectionData) {
   await ensurePostgresSchema();
 
@@ -380,6 +413,10 @@ async function writePostgresConnectionData(data: ConnectionData) {
 }
 
 async function readConnectionData(): Promise<ConnectionData> {
+  if (shouldUseTurso()) {
+    return readTursoConnectionData();
+  }
+
   if (shouldUsePostgres()) {
     return readPostgresConnectionData();
   }
@@ -411,6 +448,11 @@ async function readConnectionData(): Promise<ConnectionData> {
 }
 
 async function writeConnectionData(data: ConnectionData) {
+  if (shouldUseTurso()) {
+    await writeTursoConnectionData(data);
+    return;
+  }
+
   if (shouldUsePostgres()) {
     await writePostgresConnectionData(data);
     return;

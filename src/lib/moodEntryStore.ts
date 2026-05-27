@@ -4,15 +4,46 @@ import { getCirclesForUser } from "@/lib/circleStore";
 import { getFriendUsernames } from "@/lib/connectionStore";
 import type { NewMoodEntry, SavedMoodEntry } from "@/lib/moodTypes";
 import { isSavedMoodEntry } from "@/lib/moodTypes";
+import {
+  readTursoJsonDocument,
+  shouldUseTurso,
+  writeTursoJsonDocument,
+} from "@/lib/tursoStore";
 
 const dataDirectory = path.join(process.cwd(), ".data");
 const moodEntryDirectory = path.join(dataDirectory, "mood-entries");
+
+function normalizeUsername(username: string) {
+  return username.trim().toLowerCase();
+}
 
 function getMoodEntriesFile(username: string) {
   return path.join(moodEntryDirectory, `${username}.json`);
 }
 
+function getMoodEntriesDocumentKey(username: string) {
+  return `mood-entries:${normalizeUsername(username)}`;
+}
+
+function cleanMoodEntries(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter(isSavedMoodEntry).map((entry) => ({
+        ...entry,
+        sharedCircleIds: entry.sharedCircleIds ?? [],
+        sharedWith: entry.sharedWith ?? [],
+      }))
+    : [];
+}
+
 async function readStoredEntries(username: string) {
+  if (shouldUseTurso()) {
+    return readTursoJsonDocument<SavedMoodEntry[]>(
+      getMoodEntriesDocumentKey(username),
+      [],
+      cleanMoodEntries,
+    );
+  }
+
   const moodEntriesFile = getMoodEntriesFile(username);
 
   try {
@@ -38,6 +69,11 @@ async function readStoredEntries(username: string) {
 }
 
 async function writeStoredEntries(username: string, entries: SavedMoodEntry[]) {
+  if (shouldUseTurso()) {
+    await writeTursoJsonDocument(getMoodEntriesDocumentKey(username), entries);
+    return;
+  }
+
   const moodEntriesFile = getMoodEntriesFile(username);
   await fs.mkdir(moodEntryDirectory, { recursive: true });
 

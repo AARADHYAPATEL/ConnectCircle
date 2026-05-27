@@ -5,9 +5,15 @@ import {
   onlinePresenceWindowMs,
   type UserPresence,
 } from "@/lib/presenceTypes";
+import {
+  readTursoJsonDocument,
+  shouldUseTurso,
+  writeTursoJsonDocument,
+} from "@/lib/tursoStore";
 
 const dataDirectory = path.join(process.cwd(), ".data");
 const presenceFile = path.join(dataDirectory, "presence.json");
+const tursoPresenceDocumentKey = "presence";
 const stalePresenceWindowMs = 1000 * 60 * 60 * 24;
 let presenceMutation = Promise.resolve();
 
@@ -26,6 +32,14 @@ function wait(milliseconds: number) {
 }
 
 async function readPresence() {
+  if (shouldUseTurso()) {
+    return readTursoJsonDocument<UserPresence[]>(
+      tursoPresenceDocumentKey,
+      [],
+      (value) => (Array.isArray(value) ? value.filter(isUserPresence) : []),
+    );
+  }
+
   try {
     const file = await fs.readFile(presenceFile, "utf8");
     const parsed: unknown = JSON.parse(file);
@@ -45,6 +59,11 @@ async function readPresence() {
 }
 
 async function writePresence(presences: UserPresence[]) {
+  if (shouldUseTurso()) {
+    await writeTursoJsonDocument(tursoPresenceDocumentKey, presences);
+    return;
+  }
+
   await fs.mkdir(dataDirectory, { recursive: true });
 
   const serializedPresences = JSON.stringify(presences, null, 2);
