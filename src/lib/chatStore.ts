@@ -9,6 +9,10 @@ import {
   type ChatMediaAttachment,
 } from "@/lib/chatImageAttachments";
 import {
+  deleteMediaAttachment,
+  uploadMediaAttachment,
+} from "@/lib/mediaStorage";
+import {
   chatMessageLimit,
   isChatMessage,
   type ChatMessage,
@@ -355,6 +359,10 @@ function tursoRowOptionalNumber(row: TursoRow, key: string) {
 }
 
 function chatAttachmentToBytes(attachment: ChatMediaAttachment) {
+  if (!attachment.dataUrl) {
+    return null;
+  }
+
   const prefix = `data:${attachment.type};base64,`;
 
   if (!attachment.dataUrl.startsWith(prefix)) {
@@ -368,21 +376,36 @@ function tursoRowToChatAttachment(row: TursoRow) {
   const name = tursoRowOptionalString(row, "media_name");
   const type = tursoRowOptionalString(row, "media_type");
   const size = tursoRowOptionalNumber(row, "media_size");
+  const url = tursoRowOptionalString(row, "media_url");
+  const cloudinaryPublicId = tursoRowOptionalString(row, "media_public_id");
+  const provider = tursoRowOptionalString(row, "media_provider");
   const data = tursoBlobValueToBuffer(row.media_data);
 
-  if (!name || !type || !size || !data) {
+  if (!name || !type || !size) {
     return null;
   }
 
-  const candidateAttachment = {
-    dataUrl: `data:${type};base64,${data.toString("base64")}`,
-    kind: type.startsWith("video/") ? "video" : "image",
-    name,
-    size,
-    type,
-  };
+  const candidateAttachment = url
+    ? {
+        cloudinaryPublicId: cloudinaryPublicId ?? undefined,
+        kind: type.startsWith("video/") ? "video" : "image",
+        name,
+        provider: provider === "cloudinary" ? "cloudinary" : undefined,
+        size,
+        type,
+        url,
+      }
+    : data
+      ? {
+          dataUrl: `data:${type};base64,${data.toString("base64")}`,
+          kind: type.startsWith("video/") ? "video" : "image",
+          name,
+          size,
+          type,
+        }
+      : null;
 
-  return isChatMediaAttachment(candidateAttachment)
+  return candidateAttachment && isChatMediaAttachment(candidateAttachment)
     ? candidateAttachment
     : null;
 }
@@ -424,11 +447,57 @@ function chatMessageToTursoValues(message: ChatMessage) {
     attachment?.name ?? null,
     attachment?.type ?? null,
     attachment?.size ?? null,
+    attachment?.url ?? null,
+    attachment?.cloudinaryPublicId ?? null,
+    attachment?.provider ?? null,
     attachmentBytes,
     message.createdAt,
     message.editedAt ?? null,
     new Date().toISOString(),
   ];
+}
+
+async function ensureTursoChatMessageMediaColumns() {
+  const result = await getTursoClient().execute(
+    `PRAGMA table_info(${chatMessagesTable})`,
+  );
+  const existingColumns = new Set(
+    result.rows
+      .map((row) => tursoRowOptionalString(row, "name"))
+      .filter((name): name is string => Boolean(name)),
+  );
+
+  for (const [name, definition] of [
+    ["media_url", "TEXT"],
+    ["media_public_id", "TEXT"],
+    ["media_provider", "TEXT"],
+  ] as const) {
+    if (!existingColumns.has(name)) {
+      await getTursoClient().execute(
+        `ALTER TABLE ${chatMessagesTable} ADD COLUMN ${name} ${definition}`,
+      );
+    }
+  }
+}
+
+async function prepareStoredChatAttachment(
+  attachment: ChatMediaAttachment | null,
+  messageId: string,
+) {
+  return uploadMediaAttachment(attachment, {
+    folder: "direct-chat",
+    messageId,
+  });
+}
+
+function didReplaceStoredAttachment(
+  previousAttachment: ChatMediaAttachment | null | undefined,
+  nextAttachment: ChatMediaAttachment | null | undefined,
+) {
+  return (
+    previousAttachment?.cloudinaryPublicId &&
+    previousAttachment.cloudinaryPublicId !== nextAttachment?.cloudinaryPublicId
+  );
 }
 
 async function ensureTursoSchema() {
@@ -445,6 +514,9 @@ async function ensureTursoSchema() {
       media_name TEXT,
       media_type TEXT,
       media_size INTEGER,
+      media_url TEXT,
+      media_public_id TEXT,
+      media_provider TEXT,
       media_data BLOB,
       created_at TEXT NOT NULL,
       edited_at TEXT,
@@ -457,6 +529,8 @@ async function ensureTursoSchema() {
     CREATE INDEX IF NOT EXISTS connectcircle_chat_messages_created_idx
       ON ${chatMessagesTable} (created_at);
   `);
+
+  await ensureTursoChatMessageMediaColumns();
 
   hasEnsuredTursoSchema = true;
 }
@@ -495,6 +569,9 @@ async function readTursoChatMessagesBetweenUsers(
         media_name,
         media_type,
         media_size,
+        media_url,
+        media_public_id,
+        media_provider,
         media_data,
         created_at,
         edited_at
@@ -527,6 +604,9 @@ async function findTursoChatMessageById(messageId: string) {
         media_name,
         media_type,
         media_size,
+        media_url,
+        media_public_id,
+        media_provider,
         media_data,
         created_at,
         edited_at
@@ -555,12 +635,15 @@ async function insertTursoChatMessage(message: ChatMessage) {
         media_name,
         media_type,
         media_size,
+        media_url,
+        media_public_id,
+        media_provider,
         media_data,
         created_at,
         edited_at,
         updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     args: chatMessageToTursoValues(message),
   });
@@ -579,6 +662,9 @@ async function updateTursoChatMessage(message: ChatMessage) {
         media_name = ?,
         media_type = ?,
         media_size = ?,
+        media_url = ?,
+        media_public_id = ?,
+        media_provider = ?,
         media_data = ?,
         created_at = ?,
         edited_at = ?,
@@ -594,6 +680,9 @@ async function updateTursoChatMessage(message: ChatMessage) {
       values[8],
       values[9],
       values[10],
+      values[11],
+      values[12],
+      values[13],
       values[0],
     ],
   });
@@ -827,25 +916,51 @@ export async function sendChatMessage(
     };
   }
 
+  const messageId = randomUUID();
+  let storedImageAttachment: ChatMediaAttachment | null = null;
+
+  try {
+    storedImageAttachment = await prepareStoredChatAttachment(
+      cleanImageAttachment,
+      messageId,
+    );
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Media could not be uploaded. Try again.",
+      message: null,
+    };
+  }
+
   const chatMessage: ChatMessage = {
-    id: randomUUID(),
+    id: messageId,
     fromUsername,
     toUsername: acceptedFriendUsername,
     message: cleanMessage,
-    ...(cleanImageAttachment
-      ? { imageAttachment: cleanImageAttachment }
+    ...(storedImageAttachment
+      ? { imageAttachment: storedImageAttachment }
       : {}),
     createdAt: new Date().toISOString(),
   };
 
-  if (shouldUseTurso()) {
-    await insertTursoChatMessage(chatMessage);
-  } else if (shouldUsePostgres()) {
-    await insertPostgresChatMessage(chatMessage);
-  } else {
-    const messages = await readJsonChatMessages();
+  try {
+    if (shouldUseTurso()) {
+      await insertTursoChatMessage(chatMessage);
+    } else if (shouldUsePostgres()) {
+      await insertPostgresChatMessage(chatMessage);
+    } else {
+      const messages = await readJsonChatMessages();
 
-    await rewriteJsonChatMessages([chatMessage, ...messages]);
+      await rewriteJsonChatMessages([chatMessage, ...messages]);
+    }
+  } catch (error) {
+    if (storedImageAttachment?.cloudinaryPublicId) {
+      await deleteMediaAttachment(storedImageAttachment);
+    }
+
+    throw error;
   }
 
   return {
@@ -905,28 +1020,68 @@ export async function editChatMessage(
     };
   }
 
+  let storedNextImageAttachment: ChatMediaAttachment | null = null;
+
+  try {
+    storedNextImageAttachment = await prepareStoredChatAttachment(
+      nextImageAttachment,
+      existingMessage.id,
+    );
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Media could not be uploaded. Try again.",
+      message: null,
+    };
+  }
+
   const updatedMessage: ChatMessage = {
     id: existingMessage.id,
     fromUsername: existingMessage.fromUsername,
     toUsername: existingMessage.toUsername,
     message: cleanMessage,
-    ...(nextImageAttachment ? { imageAttachment: nextImageAttachment } : {}),
+    ...(storedNextImageAttachment
+      ? { imageAttachment: storedNextImageAttachment }
+      : {}),
     createdAt: existingMessage.createdAt,
     editedAt: new Date().toISOString(),
   };
 
-  if (useTurso) {
-    await updateTursoChatMessage(updatedMessage);
-  } else if (usePostgres) {
-    await updatePostgresChatMessage(updatedMessage);
-  } else {
-    const messages = await readJsonChatMessages();
+  try {
+    if (useTurso) {
+      await updateTursoChatMessage(updatedMessage);
+    } else if (usePostgres) {
+      await updatePostgresChatMessage(updatedMessage);
+    } else {
+      const messages = await readJsonChatMessages();
 
-    await rewriteJsonChatMessages(
-      messages.map((currentMessage) =>
-        currentMessage.id === messageId ? updatedMessage : currentMessage,
-      ),
-    );
+      await rewriteJsonChatMessages(
+        messages.map((currentMessage) =>
+          currentMessage.id === messageId ? updatedMessage : currentMessage,
+        ),
+      );
+    }
+  } catch (error) {
+    if (
+      storedNextImageAttachment?.cloudinaryPublicId &&
+      storedNextImageAttachment.cloudinaryPublicId !==
+        existingMessage.imageAttachment?.cloudinaryPublicId
+    ) {
+      await deleteMediaAttachment(storedNextImageAttachment);
+    }
+
+    throw error;
+  }
+
+  if (
+    didReplaceStoredAttachment(
+      existingMessage.imageAttachment,
+      storedNextImageAttachment,
+    )
+  ) {
+    await deleteMediaAttachment(existingMessage.imageAttachment);
   }
 
   return {
@@ -972,6 +1127,8 @@ export async function deleteChatMessage(
       messages.filter((currentMessage) => currentMessage.id !== messageId),
     );
   }
+
+  await deleteMediaAttachment(existingMessage.imageAttachment);
 
   return {
     error: "",

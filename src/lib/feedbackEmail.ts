@@ -45,12 +45,18 @@ export async function sendFeedbackEmail(feedback: SavedFeedback) {
     "utf8",
   ).toString("base64");
   const imageAttachments =
-    feedback.imageAttachments?.map((imageAttachment, index) => ({
-      content: getImageAttachmentContent(imageAttachment.dataUrl),
-      filename: `connectcircle-feedback-${feedback.id}-image-${
-        index + 1
-      }-${getSafeImageFilename(imageAttachment.name, index)}`,
-    })) ?? [];
+    feedback.imageAttachments
+      ?.filter(
+        (imageAttachment): imageAttachment is typeof imageAttachment & {
+          dataUrl: string;
+        } => typeof imageAttachment.dataUrl === "string",
+      )
+      .map((imageAttachment, index) => ({
+        content: getImageAttachmentContent(imageAttachment.dataUrl),
+        filename: `connectcircle-feedback-${feedback.id}-image-${
+          index + 1
+        }-${getSafeImageFilename(imageAttachment.name, index)}`,
+      })) ?? [];
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",

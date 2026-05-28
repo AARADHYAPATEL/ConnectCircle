@@ -5,6 +5,7 @@ import {
   createImageAttachmentFromFile,
   getClipboardImageFiles,
 } from "@/components/chat/ChatImageAttachmentInput";
+import { getChatMediaAttachmentSource } from "@/lib/chatImageAttachments";
 import {
   feedbackAffectedPageLimit,
   feedbackCategories,
@@ -305,7 +306,7 @@ export function FeedbackForm({ username }: { username: string }) {
                   role="img"
                   style={{
                     backgroundImage: `url(${JSON.stringify(
-                      imageAttachment.dataUrl,
+                      getChatMediaAttachmentSource(imageAttachment),
                     )})`,
                   }}
                 />

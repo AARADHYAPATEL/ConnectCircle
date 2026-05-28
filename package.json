@@ -12,7 +12,8 @@
     "migrate:connections": "node scripts/migrate-connections-to-postgres.mjs",
     "migrate:chat": "node scripts/migrate-chat-to-postgres.mjs",
     "migrate:turso": "node scripts/migrate-local-data-to-turso.mjs",
-    "migrate:postgres-to-turso": "node scripts/migrate-postgres-to-turso.mjs"
+    "migrate:postgres-to-turso": "node scripts/migrate-postgres-to-turso.mjs",
+    "migrate:media-cloudinary": "node scripts/migrate-turso-media-to-cloudinary.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.17.3",

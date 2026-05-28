@@ -19,6 +19,7 @@ import { MessageActionsMenu } from "@/components/chat/MessageActionsMenu";
 import { ReportUserDialog } from "@/components/reports/ReportUserButton";
 import {
   getChatMediaAttachmentKind,
+  getChatMediaAttachmentSource,
   type ChatMediaAttachment,
 } from "@/lib/chatImageAttachments";
 import {
@@ -1385,6 +1386,9 @@ function CircleChatBubble({
   const attachmentKind = message.imageAttachment
     ? getChatMediaAttachmentKind(message.imageAttachment)
     : null;
+  const attachmentSource = message.imageAttachment
+    ? getChatMediaAttachmentSource(message.imageAttachment)
+    : "";
 
   return (
     <div
@@ -1413,14 +1417,14 @@ function CircleChatBubble({
             controls
             playsInline
             preload="metadata"
-            src={message.imageAttachment.dataUrl}
+            src={attachmentSource}
           />
         ) : null}
         {message.imageAttachment && attachmentKind === "image" ? (
           <a
             aria-label={`Open ${message.imageAttachment.name}`}
             className="mb-3 block outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-            href={message.imageAttachment.dataUrl}
+            href={attachmentSource}
             rel="noreferrer"
             target="_blank"
           >
@@ -1429,7 +1433,7 @@ function CircleChatBubble({
               className={`block max-w-full rounded-md border ${
                 isExpanded ? "max-h-64" : "max-h-48"
               } ${isMine ? "border-white/20" : "border-slate-200"}`}
-              src={message.imageAttachment.dataUrl}
+              src={attachmentSource}
             />
           </a>
         ) : null}

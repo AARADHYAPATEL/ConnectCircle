@@ -28,10 +28,13 @@ export type ChatMediaAttachmentMimeType =
 export type ChatMediaAttachmentKind = "image" | "video";
 
 type BaseChatAttachment = {
-  dataUrl: string;
+  cloudinaryPublicId?: string;
+  dataUrl?: string;
   kind?: ChatMediaAttachmentKind;
   name: string;
+  provider?: "cloudinary";
   size: number;
+  url?: string;
 };
 
 export type ChatImageAttachment = BaseChatAttachment & {
@@ -217,6 +220,43 @@ function validateAttachment(
   };
 }
 
+function hasStoredMediaUrl(attachment: Partial<ChatMediaAttachment>) {
+  if (typeof attachment.url !== "string" || !attachment.url) {
+    return false;
+  }
+
+  try {
+    const url = new URL(attachment.url);
+
+    return url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function isStoredChatMediaAttachment(value: unknown): value is ChatMediaAttachment {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const attachment = value as Partial<ChatMediaAttachment>;
+
+  return (
+    typeof attachment.name === "string" &&
+    typeof attachment.size === "number" &&
+    Number.isFinite(attachment.size) &&
+    attachment.size > 0 &&
+    typeof attachment.type === "string" &&
+    isChatMediaAttachmentMimeType(attachment.type) &&
+    hasStoredMediaUrl(attachment) &&
+    (attachment.kind === undefined ||
+      attachment.kind === getChatMediaAttachmentKind({ type: attachment.type })) &&
+    (attachment.cloudinaryPublicId === undefined ||
+      typeof attachment.cloudinaryPublicId === "string") &&
+    (attachment.provider === undefined || attachment.provider === "cloudinary")
+  );
+}
+
 export function validateOptionalChatMediaAttachment(
   value: unknown,
 ): ChatMediaAttachmentValidationResult {
@@ -251,11 +291,18 @@ export function validateImageAttachment(
 export function isChatMediaAttachment(
   value: unknown,
 ): value is ChatMediaAttachment {
-  return !validateOptionalChatMediaAttachment(value).error && value != null;
+  return (
+    (!validateOptionalChatMediaAttachment(value).error && value != null) ||
+    isStoredChatMediaAttachment(value)
+  );
 }
 
 export function isChatImageAttachment(
   value: unknown,
 ): value is ChatImageAttachment {
   return !validateOptionalChatImageAttachment(value).error && value != null;
+}
+
+export function getChatMediaAttachmentSource(attachment: ChatMediaAttachment) {
+  return attachment.url ?? attachment.dataUrl ?? "";
 }

@@ -8,6 +8,10 @@ import {
 } from "@/lib/chatImageAttachments";
 import { getFriendUsernames } from "@/lib/connectionStore";
 import {
+  deleteMediaAttachment,
+  uploadMediaAttachment,
+} from "@/lib/mediaStorage";
+import {
   getTursoClient,
   readTursoJsonDocument,
   shouldUseTurso,
@@ -180,6 +184,10 @@ function joinRequestWithCircle(
 }
 
 function circleMessageAttachmentToBytes(attachment: ChatMediaAttachment) {
+  if (!attachment.dataUrl) {
+    return null;
+  }
+
   const prefix = `data:${attachment.type};base64,`;
 
   if (!attachment.dataUrl.startsWith(prefix)) {
@@ -193,21 +201,36 @@ function tursoRowToCircleAttachment(row: TursoRow) {
   const name = tursoRowOptionalString(row, "media_name");
   const type = tursoRowOptionalString(row, "media_type");
   const size = tursoRowOptionalNumber(row, "media_size");
+  const url = tursoRowOptionalString(row, "media_url");
+  const cloudinaryPublicId = tursoRowOptionalString(row, "media_public_id");
+  const provider = tursoRowOptionalString(row, "media_provider");
   const data = tursoBlobValueToBuffer(row.media_data);
 
-  if (!name || !type || size === null || !data) {
+  if (!name || !type || size === null) {
     return null;
   }
 
-  const candidateAttachment = {
-    dataUrl: `data:${type};base64,${data.toString("base64")}`,
-    kind: type.startsWith("video/") ? "video" : "image",
-    name,
-    size,
-    type,
-  };
+  const candidateAttachment = url
+    ? {
+        cloudinaryPublicId: cloudinaryPublicId ?? undefined,
+        kind: type.startsWith("video/") ? "video" : "image",
+        name,
+        provider: provider === "cloudinary" ? "cloudinary" : undefined,
+        size,
+        type,
+        url,
+      }
+    : data
+      ? {
+          dataUrl: `data:${type};base64,${data.toString("base64")}`,
+          kind: type.startsWith("video/") ? "video" : "image",
+          name,
+          size,
+          type,
+        }
+      : null;
 
-  return isChatMediaAttachment(candidateAttachment)
+  return candidateAttachment && isChatMediaAttachment(candidateAttachment)
     ? candidateAttachment
     : null;
 }
@@ -251,11 +274,57 @@ function circleMessageToTursoValues(message: CircleMessage) {
     attachment?.name ?? null,
     attachment?.type ?? null,
     attachment?.size ?? null,
+    attachment?.url ?? null,
+    attachment?.cloudinaryPublicId ?? null,
+    attachment?.provider ?? null,
     attachmentBytes,
     message.createdAt,
     message.editedAt ?? null,
     new Date().toISOString(),
   ];
+}
+
+async function ensureTursoCircleMessageMediaColumns() {
+  const result = await getTursoClient().execute(
+    `PRAGMA table_info(${circleMessagesTable})`,
+  );
+  const existingColumns = new Set(
+    result.rows
+      .map((row) => tursoRowOptionalString(row, "name"))
+      .filter((name): name is string => Boolean(name)),
+  );
+
+  for (const [name, definition] of [
+    ["media_url", "TEXT"],
+    ["media_public_id", "TEXT"],
+    ["media_provider", "TEXT"],
+  ] as const) {
+    if (!existingColumns.has(name)) {
+      await getTursoClient().execute(
+        `ALTER TABLE ${circleMessagesTable} ADD COLUMN ${name} ${definition}`,
+      );
+    }
+  }
+}
+
+async function prepareStoredCircleAttachment(
+  attachment: ChatMediaAttachment | null,
+  messageId: string,
+) {
+  return uploadMediaAttachment(attachment, {
+    folder: "circle-chat",
+    messageId,
+  });
+}
+
+function didReplaceStoredAttachment(
+  previousAttachment: ChatMediaAttachment | null | undefined,
+  nextAttachment: ChatMediaAttachment | null | undefined,
+) {
+  return (
+    previousAttachment?.cloudinaryPublicId &&
+    previousAttachment.cloudinaryPublicId !== nextAttachment?.cloudinaryPublicId
+  );
 }
 
 async function ensureTursoCircleMessagesSchema() {
@@ -272,6 +341,9 @@ async function ensureTursoCircleMessagesSchema() {
       media_name TEXT,
       media_type TEXT,
       media_size INTEGER,
+      media_url TEXT,
+      media_public_id TEXT,
+      media_provider TEXT,
       media_data BLOB,
       created_at TEXT NOT NULL,
       edited_at TEXT,
@@ -287,6 +359,8 @@ async function ensureTursoCircleMessagesSchema() {
     CREATE INDEX IF NOT EXISTS connectcircle_circle_messages_created_idx
       ON ${circleMessagesTable} (created_at);
   `);
+
+  await ensureTursoCircleMessageMediaColumns();
 
   hasEnsuredTursoCircleMessagesSchema = true;
 }
@@ -320,12 +394,15 @@ async function insertTursoCircleMessage(message: CircleMessage) {
         media_name,
         media_type,
         media_size,
+        media_url,
+        media_public_id,
+        media_provider,
         media_data,
         created_at,
         edited_at,
         updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         circle_id = excluded.circle_id,
         from_username = excluded.from_username,
@@ -333,6 +410,9 @@ async function insertTursoCircleMessage(message: CircleMessage) {
         media_name = excluded.media_name,
         media_type = excluded.media_type,
         media_size = excluded.media_size,
+        media_url = excluded.media_url,
+        media_public_id = excluded.media_public_id,
+        media_provider = excluded.media_provider,
         media_data = excluded.media_data,
         created_at = excluded.created_at,
         edited_at = excluded.edited_at,
@@ -375,6 +455,9 @@ async function readTursoCircleMessages() {
         media_name,
         media_type,
         media_size,
+        media_url,
+        media_public_id,
+        media_provider,
         media_data,
         created_at,
         edited_at
@@ -403,6 +486,9 @@ async function readTursoCircleMessagesForCircle(circleId: string) {
         media_name,
         media_type,
         media_size,
+        media_url,
+        media_public_id,
+        media_provider,
         media_data,
         created_at,
         edited_at
@@ -438,6 +524,12 @@ async function readTursoCircleMessagesForCircles(
         circle_id,
         from_username,
         message,
+        media_name,
+        media_type,
+        media_size,
+        media_url,
+        media_public_id,
+        media_provider,
         created_at,
         edited_at
       FROM ${circleMessagesTable}
@@ -468,6 +560,9 @@ async function findTursoCircleMessageById(messageId: string) {
         media_name,
         media_type,
         media_size,
+        media_url,
+        media_public_id,
+        media_provider,
         media_data,
         created_at,
         edited_at
@@ -853,6 +948,12 @@ export async function deleteCircle(
       error: "Only the circle creator can delete this circle.",
     };
   }
+
+  await Promise.all(
+    data.messages
+      .filter((message) => message.circleId === circle.id)
+      .map((message) => deleteMediaAttachment(message.imageAttachment)),
+  );
 
   await writeCircleData({
     circles: data.circles.filter(
@@ -1304,24 +1405,50 @@ export async function sendCircleMessage(
     };
   }
 
+  const messageId = randomUUID();
+  let storedImageAttachment: ChatMediaAttachment | null = null;
+
+  try {
+    storedImageAttachment = await prepareStoredCircleAttachment(
+      cleanImageAttachment,
+      messageId,
+    );
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Media could not be uploaded. Try again.",
+      message: null,
+    };
+  }
+
   const circleMessage: CircleMessage = {
-    id: randomUUID(),
+    id: messageId,
     circleId: circle.id,
     fromUsername,
     message: cleanMessage,
-    ...(cleanImageAttachment
-      ? { imageAttachment: cleanImageAttachment }
+    ...(storedImageAttachment
+      ? { imageAttachment: storedImageAttachment }
       : {}),
     createdAt: new Date().toISOString(),
   };
 
-  if (shouldUseTurso()) {
-    await insertTursoCircleMessage(circleMessage);
-  } else {
-    await writeCircleData({
-      ...data,
-      messages: [circleMessage, ...data.messages],
-    });
+  try {
+    if (shouldUseTurso()) {
+      await insertTursoCircleMessage(circleMessage);
+    } else {
+      await writeCircleData({
+        ...data,
+        messages: [circleMessage, ...data.messages],
+      });
+    }
+  } catch (error) {
+    if (storedImageAttachment?.cloudinaryPublicId) {
+      await deleteMediaAttachment(storedImageAttachment);
+    }
+
+    throw error;
   }
 
   return {
@@ -1391,25 +1518,65 @@ export async function editCircleMessage(
     };
   }
 
+  let storedNextImageAttachment: ChatMediaAttachment | null = null;
+
+  try {
+    storedNextImageAttachment = await prepareStoredCircleAttachment(
+      nextImageAttachment,
+      existingMessage.id,
+    );
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Media could not be uploaded. Try again.",
+      message: null,
+    };
+  }
+
   const updatedMessage: CircleMessage = {
     id: existingMessage.id,
     circleId: existingMessage.circleId,
     fromUsername: existingMessage.fromUsername,
     message: cleanMessage,
-    ...(nextImageAttachment ? { imageAttachment: nextImageAttachment } : {}),
+    ...(storedNextImageAttachment
+      ? { imageAttachment: storedNextImageAttachment }
+      : {}),
     createdAt: existingMessage.createdAt,
     editedAt: new Date().toISOString(),
   };
 
-  if (shouldUseTurso()) {
-    await insertTursoCircleMessage(updatedMessage);
-  } else {
-    await writeCircleData({
-      ...data,
-      messages: data.messages.map((currentMessage) =>
-        currentMessage.id === messageId ? updatedMessage : currentMessage,
-      ),
-    });
+  try {
+    if (shouldUseTurso()) {
+      await insertTursoCircleMessage(updatedMessage);
+    } else {
+      await writeCircleData({
+        ...data,
+        messages: data.messages.map((currentMessage) =>
+          currentMessage.id === messageId ? updatedMessage : currentMessage,
+        ),
+      });
+    }
+  } catch (error) {
+    if (
+      storedNextImageAttachment?.cloudinaryPublicId &&
+      storedNextImageAttachment.cloudinaryPublicId !==
+        existingMessage.imageAttachment?.cloudinaryPublicId
+    ) {
+      await deleteMediaAttachment(storedNextImageAttachment);
+    }
+
+    throw error;
+  }
+
+  if (
+    didReplaceStoredAttachment(
+      existingMessage.imageAttachment,
+      storedNextImageAttachment,
+    )
+  ) {
+    await deleteMediaAttachment(existingMessage.imageAttachment);
   }
 
   return {
@@ -1463,6 +1630,8 @@ export async function deleteCircleMessage(
       ),
     });
   }
+
+  await deleteMediaAttachment(existingMessage.imageAttachment);
 
   return {
     error: "",

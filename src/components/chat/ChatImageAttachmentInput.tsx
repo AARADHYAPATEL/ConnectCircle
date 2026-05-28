@@ -5,6 +5,7 @@ import {
   chatImageAttachmentMimeTypes,
   chatMediaAttachmentMimeTypes,
   getChatMediaAttachmentKind,
+  getChatMediaAttachmentSource,
   isChatVideoAttachment,
   validateImageAttachment,
   validateMediaAttachment,
@@ -249,7 +250,8 @@ export async function copyChatMediaAttachmentToClipboard(
     throw new Error("Copying attachments is not supported in this browser.");
   }
 
-  const response = await fetch(attachment.dataUrl);
+  const attachmentSource = getChatMediaAttachmentSource(attachment);
+  const response = await fetch(attachmentSource);
   const blob = await response.blob();
 
   try {
@@ -257,6 +259,10 @@ export async function copyChatMediaAttachmentToClipboard(
   } catch {
     if (isChatVideoAttachment(attachment)) {
       throw new Error("Video copy is not supported in this browser.");
+    }
+
+    if (!attachment.dataUrl) {
+      throw new Error("Image copy is not supported for this attachment.");
     }
 
     const pngBlob = await dataUrlToPngBlob(attachment.dataUrl);
@@ -279,6 +285,9 @@ export function ChatImageAttachmentInput({
   const attachmentKind = attachment
     ? getChatMediaAttachmentKind(attachment)
     : null;
+  const attachmentSource = attachment
+    ? getChatMediaAttachmentSource(attachment)
+    : "";
 
   async function handleFileSelection(file: File | undefined) {
     if (!file) {
@@ -344,7 +353,7 @@ export function ChatImageAttachmentInput({
               muted
               playsInline
               preload="metadata"
-              src={attachment.dataUrl}
+              src={attachmentSource}
             />
           ) : (
             <div
@@ -354,7 +363,7 @@ export function ChatImageAttachmentInput({
               } ${classes.previewImage}`}
               role="img"
               style={{
-                backgroundImage: `url(${JSON.stringify(attachment.dataUrl)})`,
+                backgroundImage: `url(${JSON.stringify(attachmentSource)})`,
               }}
             />
           )}
