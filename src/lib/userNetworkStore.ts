@@ -22,6 +22,12 @@ export type UserNetworkRecord = {
 const dataDirectory = path.join(process.cwd(), ".data");
 const userNetworkFile = path.join(dataDirectory, "user-network.json");
 const tursoUserNetworkDocumentKey = "user-network";
+const networkRefreshIntervalMs = 15 * 60 * 1000;
+
+type RecordUserNetworkAccessInput = {
+  lastIp: string;
+  lastUserAgent?: string;
+};
 
 function normalizeUsernameKey(username: string) {
   return username.trim().toLowerCase();
@@ -94,12 +100,29 @@ async function writeUserNetworkRecords(records: UserNetworkRecord[]) {
   await writeJsonUserNetworkRecords(records);
 }
 
-export async function recordUserNetworkAccess(
-  user: PublicUser,
-  request: Request,
+function shouldSkipNetworkWrite(
+  existingRecord: UserNetworkRecord | undefined,
+  lastIp: string,
+  lastUserAgent: string,
 ) {
-  const lastIp = getClientIp(request);
+  if (!existingRecord) {
+    return false;
+  }
 
+  const lastSeenAt = new Date(existingRecord.lastSeenAt).getTime();
+  const isFresh = Date.now() - lastSeenAt < networkRefreshIntervalMs;
+
+  return (
+    isFresh &&
+    existingRecord.lastIp === lastIp &&
+    (existingRecord.lastUserAgent ?? "") === lastUserAgent
+  );
+}
+
+export async function recordUserNetworkAccessDetails(
+  user: PublicUser,
+  { lastIp, lastUserAgent = "" }: RecordUserNetworkAccessInput,
+) {
   if (!lastIp) {
     return null;
   }
@@ -109,6 +132,11 @@ export async function recordUserNetworkAccess(
   const existingRecord = records.find(
     (record) => record.userId === user.id || record.usernameKey === usernameKey,
   );
+
+  if (shouldSkipNetworkWrite(existingRecord, lastIp, lastUserAgent)) {
+    return existingRecord ?? null;
+  }
+
   const nextRecord: UserNetworkRecord = {
     id: existingRecord?.id ?? randomUUID(),
     lastIp,
@@ -116,8 +144,8 @@ export async function recordUserNetworkAccess(
     userId: user.id,
     username: user.username,
     usernameKey,
-    ...(getUserAgent(request)
-      ? { lastUserAgent: getUserAgent(request) }
+    ...(lastUserAgent
+      ? { lastUserAgent }
       : existingRecord?.lastUserAgent
         ? { lastUserAgent: existingRecord.lastUserAgent }
         : {}),
@@ -129,6 +157,16 @@ export async function recordUserNetworkAccess(
   ]);
 
   return nextRecord;
+}
+
+export async function recordUserNetworkAccess(
+  user: PublicUser,
+  request: Request,
+) {
+  return recordUserNetworkAccessDetails(user, {
+    lastIp: getClientIp(request),
+    lastUserAgent: getUserAgent(request),
+  });
 }
 
 export async function getUserNetworkRecordByUsername(username: string) {

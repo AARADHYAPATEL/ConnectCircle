@@ -3,7 +3,11 @@ import { cookies, headers } from "next/headers";
 import type { NextResponse } from "next/server";
 import { getUserById, type PublicUser } from "@/lib/authStore";
 import { getIpBanBlock, getUserSignInBlock } from "@/lib/moderationStore";
-import { getClientIpFromHeaders } from "@/lib/requestIdentity";
+import {
+  getClientIpFromHeaders,
+  getUserAgentFromHeaders,
+} from "@/lib/requestIdentity";
+import { recordUserNetworkAccessDetails } from "@/lib/userNetworkStore";
 
 const sessionCookieName = "connectcircle_session";
 const sessionMaxAge = 60 * 60 * 24 * 7;
@@ -133,7 +137,16 @@ export async function getCurrentUser() {
     return null;
   }
 
-  return (await getUserSignInBlock(user.username)) ? null : user;
+  if (await getUserSignInBlock(user.username)) {
+    return null;
+  }
+
+  await recordUserNetworkAccessDetails(user, {
+    lastIp: clientIp,
+    lastUserAgent: getUserAgentFromHeaders(headerStore),
+  }).catch(() => null);
+
+  return user;
 }
 
 function isSessionPayload(value: unknown): value is SessionPayload {
