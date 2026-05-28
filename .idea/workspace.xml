@@ -4,9 +4,13 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="Adding admin action revocation actions and fixing admin UI">
+    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="Updating notification bell component">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/notifications/NotificationBell.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/notifications/NotificationBell.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/moderationStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/moderationStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/notificationStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/notificationStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/reportStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/reportStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/tursoStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/tursoStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/userNetworkStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/userNetworkStore.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -143,7 +147,7 @@
       <workItem from="1779872863532" duration="189000" />
       <workItem from="1779873094911" duration="2289000" />
       <workItem from="1779876690063" duration="10033000" />
-      <workItem from="1779934253272" duration="2815000" />
+      <workItem from="1779934253272" duration="3704000" />
     </task>
     <task id="LOCAL-00001" summary="This is ConnectCircle, where students can share their mood, send supportive messages to friends and build stronger peer relationships.">
       <option name="closed" value="true" />
@@ -305,7 +309,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779936631466</updated>
     </task>
-    <option name="localTasksCounter" value="21" />
+    <task id="LOCAL-00021" summary="Updating notification bell component">
+      <option name="closed" value="true" />
+      <created>1779937272989</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1779937272989</updated>
+    </task>
+    <option name="localTasksCounter" value="22" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -338,7 +350,8 @@
     <MESSAGE value="Giving information to admins" />
     <MESSAGE value="Strengthening IP tunneling" />
     <MESSAGE value="Adding admin action revocation actions and fixing admin UI" />
-    <option name="LAST_COMMIT_MESSAGE" value="Adding admin action revocation actions and fixing admin UI" />
+    <MESSAGE value="Updating notification bell component" />
+    <option name="LAST_COMMIT_MESSAGE" value="Updating notification bell component" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import type { Row as TursoRow } from "@libsql/client";
 import {
   getModerationActionLabel,
   isModerationActionType,
@@ -9,10 +10,13 @@ import {
 } from "@/lib/moderationTypes";
 import { normalizeClientIp } from "@/lib/requestIdentity";
 import {
+  compressedTursoBlobToJson,
+  getTursoClient,
   readTursoJsonDocument,
   shouldUseTurso,
-  writeTursoJsonDocument,
+  valueToCompressedTursoBlob,
 } from "@/lib/tursoStore";
+import { tursoRowNumber, tursoRowString } from "@/lib/tursoRow";
 
 export type CreateModerationRecordInput = {
   createdBy: string;
@@ -40,7 +44,11 @@ export type DeactivateModerationRecordInput = {
 
 const dataDirectory = path.join(process.cwd(), ".data");
 const moderationRecordsFile = path.join(dataDirectory, "moderation-records.json");
+const moderationRecordsTable = "connectcircle_moderation_records";
 const tursoModerationRecordsDocumentKey = "moderation-records";
+
+let hasEnsuredTursoModerationSchema = false;
+let hasBackfilledTursoModerationRecords = false;
 
 function normalizeUsernameKey(username: string) {
   return username.trim().toLowerCase();
@@ -88,6 +96,272 @@ function validateModerationRecords(value: unknown) {
   return Array.isArray(value) ? value.filter(isModerationRecord) : [];
 }
 
+function rowToModerationRecord(row: TursoRow) {
+  const parsed = compressedTursoBlobToJson<unknown>(row.data_blob);
+
+  return isModerationRecord(parsed) ? parsed : null;
+}
+
+async function ensureTursoModerationSchema() {
+  if (hasEnsuredTursoModerationSchema) {
+    return;
+  }
+
+  await getTursoClient().executeMultiple(`
+    CREATE TABLE IF NOT EXISTS ${moderationRecordsTable} (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      active INTEGER NOT NULL,
+      report_id TEXT,
+      target_username TEXT,
+      target_username_key TEXT,
+      target_user_id TEXT,
+      target_ip TEXT,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      expires_at TEXT,
+      data_blob BLOB NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS connectcircle_moderation_records_user_idx
+      ON ${moderationRecordsTable} (
+        active,
+        target_username_key,
+        type,
+        expires_at
+      );
+
+    CREATE INDEX IF NOT EXISTS connectcircle_moderation_records_ip_idx
+      ON ${moderationRecordsTable} (active, target_ip, type, expires_at);
+
+    CREATE INDEX IF NOT EXISTS connectcircle_moderation_records_report_idx
+      ON ${moderationRecordsTable} (report_id, created_at);
+
+    CREATE INDEX IF NOT EXISTS connectcircle_moderation_records_created_idx
+      ON ${moderationRecordsTable} (created_at);
+  `);
+
+  hasEnsuredTursoModerationSchema = true;
+}
+
+async function countTursoModerationRecords() {
+  await ensureTursoModerationSchema();
+
+  const result = await getTursoClient().execute(
+    `SELECT COUNT(*) AS count FROM ${moderationRecordsTable}`,
+  );
+  const row = result.rows[0];
+
+  return row ? tursoRowNumber(row, "count") : 0;
+}
+
+async function upsertTursoModerationRecord(record: ModerationRecord) {
+  await ensureTursoModerationSchema();
+
+  await getTursoClient().execute({
+    sql: `
+      INSERT INTO ${moderationRecordsTable} (
+        id,
+        type,
+        active,
+        report_id,
+        target_username,
+        target_username_key,
+        target_user_id,
+        target_ip,
+        created_by,
+        created_at,
+        expires_at,
+        data_blob,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        type = excluded.type,
+        active = excluded.active,
+        report_id = excluded.report_id,
+        target_username = excluded.target_username,
+        target_username_key = excluded.target_username_key,
+        target_user_id = excluded.target_user_id,
+        target_ip = excluded.target_ip,
+        created_by = excluded.created_by,
+        created_at = excluded.created_at,
+        expires_at = excluded.expires_at,
+        data_blob = excluded.data_blob,
+        updated_at = excluded.updated_at
+    `,
+    args: [
+      record.id,
+      record.type,
+      record.active ? 1 : 0,
+      record.reportId ?? null,
+      record.targetUsername ?? null,
+      record.targetUsername
+        ? normalizeUsernameKey(record.targetUsername)
+        : null,
+      record.targetUserId ?? null,
+      record.targetIp ?? null,
+      record.createdBy,
+      record.createdAt,
+      record.expiresAt ?? null,
+      valueToCompressedTursoBlob(record),
+      new Date().toISOString(),
+    ],
+  });
+}
+
+async function backfillTursoModerationRecordsFromLegacyDocument() {
+  if (hasBackfilledTursoModerationRecords) {
+    return;
+  }
+
+  if ((await countTursoModerationRecords()) > 0) {
+    hasBackfilledTursoModerationRecords = true;
+    return;
+  }
+
+  const legacyRecords = await readTursoJsonDocument<ModerationRecord[]>(
+    tursoModerationRecordsDocumentKey,
+    [],
+    validateModerationRecords,
+  );
+
+  for (const record of legacyRecords) {
+    await upsertTursoModerationRecord(record);
+  }
+
+  hasBackfilledTursoModerationRecords = true;
+}
+
+async function readTursoModerationRecords() {
+  await ensureTursoModerationSchema();
+  await backfillTursoModerationRecordsFromLegacyDocument();
+
+  const result = await getTursoClient().execute({
+    sql: `
+      SELECT data_blob
+      FROM ${moderationRecordsTable}
+      ORDER BY created_at DESC
+    `,
+    args: [],
+  });
+
+  return result.rows
+    .map(rowToModerationRecord)
+    .filter((record): record is ModerationRecord => Boolean(record));
+}
+
+async function readTursoModerationRecordsByReportId(reportId: string) {
+  await ensureTursoModerationSchema();
+  await backfillTursoModerationRecordsFromLegacyDocument();
+
+  const result = await getTursoClient().execute({
+    sql: `
+      SELECT data_blob
+      FROM ${moderationRecordsTable}
+      WHERE report_id = ?
+      ORDER BY created_at DESC
+    `,
+    args: [reportId],
+  });
+
+  return result.rows
+    .map(rowToModerationRecord)
+    .filter((record): record is ModerationRecord => Boolean(record));
+}
+
+async function findTursoModerationRecordForReport(
+  recordId: string,
+  reportId: string,
+) {
+  await ensureTursoModerationSchema();
+  await backfillTursoModerationRecordsFromLegacyDocument();
+
+  const result = await getTursoClient().execute({
+    sql: `
+      SELECT data_blob
+      FROM ${moderationRecordsTable}
+      WHERE id = ? AND report_id = ?
+      LIMIT 1
+    `,
+    args: [recordId, reportId],
+  });
+  const row = result.rows[0];
+
+  return row ? rowToModerationRecord(row) : null;
+}
+
+async function readTursoActiveUserModerationRecords(username: string) {
+  await ensureTursoModerationSchema();
+  await backfillTursoModerationRecordsFromLegacyDocument();
+
+  const result = await getTursoClient().execute({
+    sql: `
+      SELECT data_blob
+      FROM ${moderationRecordsTable}
+      WHERE active = 1
+        AND target_username_key = ?
+        AND type IN ('restrict_user', 'ban_user', 'delete_user')
+        AND (expires_at IS NULL OR expires_at > ?)
+      ORDER BY created_at DESC
+    `,
+    args: [normalizeUsernameKey(username), new Date().toISOString()],
+  });
+
+  return result.rows
+    .map(rowToModerationRecord)
+    .filter((record): record is ModerationRecord => Boolean(record));
+}
+
+async function findTursoActiveIpBanRecord(ip: string) {
+  await ensureTursoModerationSchema();
+  await backfillTursoModerationRecordsFromLegacyDocument();
+
+  const result = await getTursoClient().execute({
+    sql: `
+      SELECT data_blob
+      FROM ${moderationRecordsTable}
+      WHERE active = 1
+        AND target_ip = ?
+        AND type = 'ban_ip'
+        AND (expires_at IS NULL OR expires_at > ?)
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+    args: [ip, new Date().toISOString()],
+  });
+  const row = result.rows[0];
+
+  return row ? rowToModerationRecord(row) : null;
+}
+
+async function syncTursoModerationRecords(records: ModerationRecord[]) {
+  await ensureTursoModerationSchema();
+  await backfillTursoModerationRecordsFromLegacyDocument();
+
+  const nextRecordIds = new Set(records.map((record) => record.id));
+  const existingRows = await getTursoClient().execute({
+    sql: `SELECT id FROM ${moderationRecordsTable}`,
+    args: [],
+  });
+
+  for (const row of existingRows.rows) {
+    const id = tursoRowString(row, "id");
+
+    if (id && !nextRecordIds.has(id)) {
+      await getTursoClient().execute({
+        sql: `DELETE FROM ${moderationRecordsTable} WHERE id = ?`,
+        args: [id],
+      });
+    }
+  }
+
+  for (const record of records) {
+    await upsertTursoModerationRecord(record);
+  }
+}
+
 async function readJsonModerationRecords() {
   try {
     const file = await fs.readFile(moderationRecordsFile, "utf8");
@@ -113,11 +387,7 @@ async function writeJsonModerationRecords(records: ModerationRecord[]) {
 
 async function readModerationRecords() {
   if (shouldUseTurso()) {
-    return readTursoJsonDocument<ModerationRecord[]>(
-      tursoModerationRecordsDocumentKey,
-      [],
-      validateModerationRecords,
-    );
+    return readTursoModerationRecords();
   }
 
   return readJsonModerationRecords();
@@ -125,7 +395,7 @@ async function readModerationRecords() {
 
 async function writeModerationRecords(records: ModerationRecord[]) {
   if (shouldUseTurso()) {
-    await writeTursoJsonDocument(tursoModerationRecordsDocumentKey, records);
+    await syncTursoModerationRecords(records);
     return;
   }
 
@@ -168,6 +438,10 @@ export async function getModerationRecords() {
 }
 
 export async function getModerationRecordsByReportId(reportId: string) {
+  if (shouldUseTurso()) {
+    return readTursoModerationRecordsByReportId(reportId);
+  }
+
   const records = await readModerationRecords();
 
   return sortNewestFirst(records.filter((record) => record.reportId === reportId));
@@ -216,6 +490,18 @@ export async function createModerationRecord(
     ...(input.targetUserId ? { targetUserId: input.targetUserId } : {}),
     ...(targetUsername ? { targetUsername } : {}),
   };
+
+  if (shouldUseTurso()) {
+    await ensureTursoModerationSchema();
+    await backfillTursoModerationRecordsFromLegacyDocument();
+    await upsertTursoModerationRecord(record);
+
+    return {
+      error: "",
+      record,
+    };
+  }
+
   const records = await readModerationRecords();
 
   await writeModerationRecords([record, ...records]);
@@ -241,10 +527,12 @@ export async function deactivateModerationRecord({
     };
   }
 
-  const records = await readModerationRecords();
-  const existingRecord = records.find(
-    (record) => record.id === recordId && record.reportId === reportId,
-  );
+  const records = shouldUseTurso() ? [] : await readModerationRecords();
+  const existingRecord = shouldUseTurso()
+    ? await findTursoModerationRecordForReport(recordId, reportId)
+    : records.find(
+        (record) => record.id === recordId && record.reportId === reportId,
+      );
 
   if (!existingRecord) {
     return {
@@ -275,11 +563,15 @@ export async function deactivateModerationRecord({
     deactivationReason: cleanReason,
   };
 
-  await writeModerationRecords(
-    records.map((record) =>
-      record.id === recordId ? deactivatedRecord : record,
-    ),
-  );
+  if (shouldUseTurso()) {
+    await upsertTursoModerationRecord(deactivatedRecord);
+  } else {
+    await writeModerationRecords(
+      records.map((record) =>
+        record.id === recordId ? deactivatedRecord : record,
+      ),
+    );
+  }
 
   return {
     error: "",
@@ -288,6 +580,10 @@ export async function deactivateModerationRecord({
 }
 
 export async function getActiveUserModerationRecords(username: string) {
+  if (shouldUseTurso()) {
+    return readTursoActiveUserModerationRecords(username);
+  }
+
   const usernameKey = normalizeUsernameKey(username);
   const records = await readModerationRecords();
 
@@ -334,13 +630,14 @@ export async function getIpBanBlock(ip: string) {
     return null;
   }
 
-  const records = await readModerationRecords();
-  const record = sortNewestFirst(records).find(
-    (currentRecord) =>
-      currentRecord.type === "ban_ip" &&
-      currentRecord.targetIp === cleanIp &&
-      isCurrentlyActive(currentRecord),
-  );
+  const record = shouldUseTurso()
+    ? await findTursoActiveIpBanRecord(cleanIp)
+    : sortNewestFirst(await readModerationRecords()).find(
+        (currentRecord) =>
+          currentRecord.type === "ban_ip" &&
+          currentRecord.targetIp === cleanIp &&
+          isCurrentlyActive(currentRecord),
+      );
 
   return record
     ? {

@@ -43,7 +43,7 @@ export function getTursoClient() {
   return client;
 }
 
-function blobValueToBuffer(value: unknown) {
+export function tursoBlobValueToBuffer(value: unknown) {
   if (value instanceof ArrayBuffer) {
     return Buffer.from(value);
   }
@@ -53,6 +53,25 @@ function blobValueToBuffer(value: unknown) {
   }
 
   return null;
+}
+
+export function valueToCompressedTursoBlob(value: unknown) {
+  return new Uint8Array(gzipSync(JSON.stringify(value)));
+}
+
+export function compressedTursoBlobToJson<T>(
+  value: unknown,
+  validate?: JsonDocumentValidator<T>,
+) {
+  const compressedBuffer = tursoBlobValueToBuffer(value);
+
+  if (!compressedBuffer) {
+    return null;
+  }
+
+  const parsed: unknown = JSON.parse(gunzipSync(compressedBuffer).toString("utf8"));
+
+  return validate ? validate(parsed) : (parsed as T);
 }
 
 export async function ensureTursoDocumentSchema() {
@@ -82,16 +101,7 @@ export async function readTursoJsonDocument<T>(
     sql: `SELECT data_blob FROM ${documentsTable} WHERE document_key = ? LIMIT 1`,
     args: [documentKey],
   });
-  const blobValue = result.rows[0]?.data_blob;
-  const compressedBuffer = blobValueToBuffer(blobValue);
-
-  if (!compressedBuffer) {
-    return fallback;
-  }
-
-  const parsed: unknown = JSON.parse(gunzipSync(compressedBuffer).toString("utf8"));
-
-  return validate ? validate(parsed) : (parsed as T);
+  return compressedTursoBlobToJson(result.rows[0]?.data_blob, validate) ?? fallback;
 }
 
 export async function writeTursoJsonDocument<T>(
@@ -99,8 +109,6 @@ export async function writeTursoJsonDocument<T>(
   value: T,
 ) {
   await ensureTursoDocumentSchema();
-
-  const compressedBuffer = gzipSync(JSON.stringify(value));
 
   await getTursoClient().execute({
     sql: `
@@ -112,9 +120,8 @@ export async function writeTursoJsonDocument<T>(
     `,
     args: [
       documentKey,
-      new Uint8Array(compressedBuffer),
+      valueToCompressedTursoBlob(value),
       new Date().toISOString(),
     ],
   });
 }
-

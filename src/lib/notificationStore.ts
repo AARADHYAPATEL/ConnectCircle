@@ -7,16 +7,21 @@ import { getConnectionSummary } from "@/lib/connectionStore";
 import { getSharedMoodEntries } from "@/lib/moodEntryStore";
 import { getSupportMessageSummary } from "@/lib/supportMessageStore";
 import {
+  getTursoClient,
   readTursoJsonDocument,
   shouldUseTurso,
-  writeTursoJsonDocument,
 } from "@/lib/tursoStore";
+import { tursoRowNumber, tursoRowString } from "@/lib/tursoRow";
 import type { AppNotification, NotificationSummary } from "@/lib/notificationTypes";
 
 const dataDirectory = path.join(process.cwd(), ".data");
 const notificationStateFile = path.join(dataDirectory, "notification-state.json");
+const notificationStatesTable = "connectcircle_notification_states";
 const tursoNotificationStateDocumentKey = "notification-state";
 const visibleNotificationLimit = 14;
+
+let hasEnsuredTursoNotificationStatesSchema = false;
+let hasBackfilledTursoNotificationStates = false;
 
 type NotificationState = {
   lastSeenAt: string;
@@ -44,14 +49,180 @@ function isNotificationState(value: unknown): value is NotificationState {
   );
 }
 
+function validateNotificationStatesDocument(value: unknown) {
+  return Array.isArray(value) ? value.filter(isNotificationState) : [];
+}
+
+async function ensureTursoNotificationStatesSchema() {
+  if (hasEnsuredTursoNotificationStatesSchema) {
+    return;
+  }
+
+  await getTursoClient().executeMultiple(`
+    CREATE TABLE IF NOT EXISTS ${notificationStatesTable} (
+      username_key TEXT PRIMARY KEY,
+      username TEXT NOT NULL,
+      last_seen_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS connectcircle_notification_states_seen_idx
+      ON ${notificationStatesTable} (last_seen_at);
+  `);
+
+  hasEnsuredTursoNotificationStatesSchema = true;
+}
+
+async function countTursoNotificationStates() {
+  await ensureTursoNotificationStatesSchema();
+
+  const result = await getTursoClient().execute(
+    `SELECT COUNT(*) AS count FROM ${notificationStatesTable}`,
+  );
+  const row = result.rows[0];
+
+  return row ? tursoRowNumber(row, "count") : 0;
+}
+
+function rowToNotificationState(row: { [key: string]: unknown }) {
+  const state = {
+    username: String(row.username ?? ""),
+    lastSeenAt: String(row.last_seen_at ?? ""),
+  };
+
+  return isNotificationState(state) ? state : null;
+}
+
+async function upsertTursoNotificationState(state: NotificationState) {
+  await ensureTursoNotificationStatesSchema();
+
+  await getTursoClient().execute({
+    sql: `
+      INSERT INTO ${notificationStatesTable} (
+        username_key,
+        username,
+        last_seen_at,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(username_key) DO UPDATE SET
+        username = excluded.username,
+        last_seen_at = excluded.last_seen_at,
+        updated_at = excluded.updated_at
+    `,
+    args: [
+      normalizeUsername(state.username),
+      state.username,
+      state.lastSeenAt,
+      new Date().toISOString(),
+    ],
+  });
+}
+
+async function backfillTursoNotificationStatesFromLegacyDocument() {
+  if (hasBackfilledTursoNotificationStates) {
+    return;
+  }
+
+  if ((await countTursoNotificationStates()) > 0) {
+    hasBackfilledTursoNotificationStates = true;
+    return;
+  }
+
+  const legacyStates = await readTursoJsonDocument<NotificationState[]>(
+    tursoNotificationStateDocumentKey,
+    [],
+    validateNotificationStatesDocument,
+  );
+
+  for (const state of legacyStates) {
+    await upsertTursoNotificationState(state);
+  }
+
+  hasBackfilledTursoNotificationStates = true;
+}
+
+async function readTursoNotificationStates() {
+  await ensureTursoNotificationStatesSchema();
+  await backfillTursoNotificationStatesFromLegacyDocument();
+
+  const result = await getTursoClient().execute({
+    sql: `
+      SELECT username, last_seen_at
+      FROM ${notificationStatesTable}
+      ORDER BY last_seen_at DESC
+    `,
+    args: [],
+  });
+
+  return result.rows
+    .map(rowToNotificationState)
+    .filter((state): state is NotificationState => Boolean(state));
+}
+
+async function findTursoNotificationState(username: string) {
+  await ensureTursoNotificationStatesSchema();
+  await backfillTursoNotificationStatesFromLegacyDocument();
+
+  const result = await getTursoClient().execute({
+    sql: `
+      SELECT username, last_seen_at
+      FROM ${notificationStatesTable}
+      WHERE username_key = ?
+      LIMIT 1
+    `,
+    args: [normalizeUsername(username)],
+  });
+  const row = result.rows[0];
+
+  return row ? rowToNotificationState(row) : null;
+}
+
+async function syncTursoNotificationStates(states: NotificationState[]) {
+  await ensureTursoNotificationStatesSchema();
+  await backfillTursoNotificationStatesFromLegacyDocument();
+
+  const nextStateKeys = new Set(
+    states.map((state) => normalizeUsername(state.username)),
+  );
+  const existingRows = await getTursoClient().execute({
+    sql: `SELECT username_key FROM ${notificationStatesTable}`,
+    args: [],
+  });
+
+  for (const row of existingRows.rows) {
+    const usernameKey = tursoRowString(row, "username_key");
+
+    if (usernameKey && !nextStateKeys.has(usernameKey)) {
+      await getTursoClient().execute({
+        sql: `DELETE FROM ${notificationStatesTable} WHERE username_key = ?`,
+        args: [usernameKey],
+      });
+    }
+  }
+
+  for (const state of states) {
+    await upsertTursoNotificationState(state);
+  }
+}
+
+async function getNotificationState(username: string) {
+  if (shouldUseTurso()) {
+    return findTursoNotificationState(username);
+  }
+
+  const states = await readNotificationStates();
+
+  return (
+    states.find((currentState) =>
+      areSameUser(currentState.username, username),
+    ) ?? null
+  );
+}
+
 async function readNotificationStates() {
   if (shouldUseTurso()) {
-    return readTursoJsonDocument<NotificationState[]>(
-      tursoNotificationStateDocumentKey,
-      [],
-      (value) =>
-        Array.isArray(value) ? value.filter(isNotificationState) : [],
-    );
+    return readTursoNotificationStates();
   }
 
   try {
@@ -80,7 +251,7 @@ async function wait(milliseconds: number) {
 
 async function writeNotificationStates(states: NotificationState[]) {
   if (shouldUseTurso()) {
-    await writeTursoJsonDocument(tursoNotificationStateDocumentKey, states);
+    await syncTursoNotificationStates(states);
     return;
   }
 
@@ -145,18 +316,15 @@ export async function getNotificationSummary(
     connectionSummary,
     sharedMoodEntries,
     supportSummary,
-    states,
+    state,
   ] = await Promise.all([
     getChatOverview(username),
     getCircleSummaryForUser(username),
     getConnectionSummary(username),
     getSharedMoodEntries(username),
     getSupportMessageSummary(username),
-    readNotificationStates(),
+    getNotificationState(username),
   ]);
-  const state = states.find((currentState) =>
-    areSameUser(currentState.username, username),
-  );
   const notifications: AppNotification[] = [
     ...connectionSummary.incomingRequests.map((request) => ({
       id: `connection:${request.id}`,
@@ -236,6 +404,16 @@ export async function getNotificationSummary(
 }
 
 export async function markNotificationsRead(username: string) {
+  if (shouldUseTurso()) {
+    const now = new Date().toISOString();
+
+    await ensureTursoNotificationStatesSchema();
+    await backfillTursoNotificationStatesFromLegacyDocument();
+    await upsertTursoNotificationState({ username, lastSeenAt: now });
+
+    return now;
+  }
+
   const states = await readNotificationStates();
   const now = new Date().toISOString();
   const existingState = states.find((state) =>
