@@ -11,6 +11,9 @@ export type ModerationRecord = {
   active: boolean;
   createdAt: string;
   createdBy: string;
+  deactivatedAt?: string;
+  deactivatedBy?: string;
+  deactivationReason?: string;
   expiresAt?: string;
   id: string;
   note?: string;

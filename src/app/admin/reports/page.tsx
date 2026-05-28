@@ -165,7 +165,13 @@ export default async function AdminReportsPage() {
                             className="btn btn-secondary btn-sm"
                             href={`/admin/reports/${report.id}`}
                           >
-                            View
+                            Review
+                          </Link>
+                          <Link
+                            className="btn btn-secondary btn-sm"
+                            href={`/admin/reports/${report.id}/moderation`}
+                          >
+                            Moderate
                           </Link>
                           <a
                             className="btn btn-secondary btn-sm"
@@ -186,4 +192,3 @@ export default async function AdminReportsPage() {
     </main>
   );
 }
-

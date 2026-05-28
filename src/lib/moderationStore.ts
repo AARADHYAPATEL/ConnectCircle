@@ -31,6 +31,13 @@ export type ModerationBlock = {
   record: ModerationRecord;
 };
 
+export type DeactivateModerationRecordInput = {
+  deactivatedBy: string;
+  reason: string;
+  recordId: string;
+  reportId: string;
+};
+
 const dataDirectory = path.join(process.cwd(), ".data");
 const moderationRecordsFile = path.join(dataDirectory, "moderation-records.json");
 const tursoModerationRecordsDocumentKey = "moderation-records";
@@ -66,6 +73,12 @@ function isModerationRecord(value: unknown): value is ModerationRecord {
     (typeof record.targetIp === "undefined" ||
       typeof record.targetIp === "string") &&
     (typeof record.note === "undefined" || typeof record.note === "string") &&
+    (typeof record.deactivatedAt === "undefined" ||
+      typeof record.deactivatedAt === "string") &&
+    (typeof record.deactivatedBy === "undefined" ||
+      typeof record.deactivatedBy === "string") &&
+    (typeof record.deactivationReason === "undefined" ||
+      typeof record.deactivationReason === "string") &&
     (typeof record.expiresAt === "undefined" ||
       typeof record.expiresAt === "string")
   );
@@ -213,22 +226,65 @@ export async function createModerationRecord(
   };
 }
 
-export async function deactivateModerationRecord(recordId: string) {
+export async function deactivateModerationRecord({
+  deactivatedBy,
+  reason,
+  recordId,
+  reportId,
+}: DeactivateModerationRecordInput) {
+  const cleanReason = cleanText(reason, 500);
+
+  if (!cleanReason) {
+    return {
+      error: "Add a reason for lifting this action.",
+      record: null,
+    };
+  }
+
   const records = await readModerationRecords();
-  let didDeactivate = false;
-
-  await writeModerationRecords(
-    records.map((record) => {
-      if (record.id !== recordId || !record.active) {
-        return record;
-      }
-
-      didDeactivate = true;
-      return { ...record, active: false };
-    }),
+  const existingRecord = records.find(
+    (record) => record.id === recordId && record.reportId === reportId,
   );
 
-  return didDeactivate;
+  if (!existingRecord) {
+    return {
+      error: "Moderation action could not be found.",
+      record: null,
+    };
+  }
+
+  if (existingRecord.type === "delete_user") {
+    return {
+      error: "Deleted accounts cannot be restored from this control.",
+      record: null,
+    };
+  }
+
+  if (!existingRecord.active) {
+    return {
+      error: "This moderation action is already inactive.",
+      record: null,
+    };
+  }
+
+  const deactivatedRecord: ModerationRecord = {
+    ...existingRecord,
+    active: false,
+    deactivatedAt: new Date().toISOString(),
+    deactivatedBy: deactivatedBy.trim(),
+    deactivationReason: cleanReason,
+  };
+
+  await writeModerationRecords(
+    records.map((record) =>
+      record.id === recordId ? deactivatedRecord : record,
+    ),
+  );
+
+  return {
+    error: "",
+    record: deactivatedRecord,
+  };
 }
 
 export async function getActiveUserModerationRecords(username: string) {

@@ -78,8 +78,12 @@ export function AdminReportActionPanel({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [liftingRecordId, setLiftingRecordId] = useState("");
+  const [liftReason, setLiftReason] = useState("");
+  const [isLifting, setIsLifting] = useState(false);
   const canSubmit =
     !isSubmitting &&
+    !isLifting &&
     confirmed &&
     reason.trim().length >= 3 &&
     (type !== "ban_ip" || targetIp.trim().length > 0);
@@ -127,6 +131,46 @@ export function AdminReportActionPanel({
       );
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function liftAction(recordId: string) {
+    if (liftReason.trim().length < 3 || isLifting) {
+      return;
+    }
+
+    setIsLifting(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const response = await fetch(`/api/admin/reports/${reportId}/actions`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          reason: liftReason,
+          recordId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response));
+      }
+
+      setNotice("Moderation action lifted.");
+      setLiftReason("");
+      setLiftingRecordId("");
+      router.refresh();
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : "Moderation action could not be lifted.",
+      );
+    } finally {
+      setIsLifting(false);
     }
   }
 
@@ -298,9 +342,20 @@ export function AdminReportActionPanel({
                   <p className="text-sm font-black text-slate-900">
                     {getModerationActionLabel(action.type)}
                   </p>
-                  <span className="rounded-md bg-white px-2 py-1 text-xs font-bold text-slate-600">
-                    {formatDate(action.createdAt)}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-md px-2 py-1 text-xs font-bold ${
+                        isRecordActive(action)
+                          ? "bg-rose-50 text-rose-800"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {isRecordActive(action) ? "Active" : "Inactive"}
+                    </span>
+                    <span className="rounded-md bg-white px-2 py-1 text-xs font-bold text-slate-600">
+                      {formatDate(action.createdAt)}
+                    </span>
+                  </div>
                 </div>
                 <p className="mt-2 text-sm font-semibold text-slate-700">
                   {action.type === "ban_ip"
@@ -313,6 +368,74 @@ export function AdminReportActionPanel({
                 {action.expiresAt ? (
                   <p className="mt-2 text-xs font-bold uppercase tracking-normal text-slate-500">
                     Expires {formatDate(action.expiresAt)}
+                  </p>
+                ) : null}
+                {action.deactivatedAt ? (
+                  <div className="mt-3 rounded-md border border-slate-200 bg-white p-3 text-xs font-semibold text-slate-600">
+                    <p>
+                      Lifted by @{action.deactivatedBy || "unknown"} on{" "}
+                      {formatDate(action.deactivatedAt)}
+                    </p>
+                    {action.deactivationReason ? (
+                      <p className="mt-1 text-slate-500">
+                        {action.deactivationReason}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+                {isRecordActive(action) && action.type !== "delete_user" ? (
+                  liftingRecordId === action.id ? (
+                    <div className="mt-3 rounded-md border border-slate-200 bg-white p-3">
+                      <label className="block text-xs font-bold uppercase tracking-normal text-slate-500">
+                        Lift reason
+                        <input
+                          className="mt-2 w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm normal-case text-slate-900 outline-none focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100"
+                          disabled={isLifting}
+                          maxLength={500}
+                          onChange={(event) => setLiftReason(event.target.value)}
+                          placeholder="Restriction no longer needed..."
+                          value={liftReason}
+                        />
+                      </label>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          className="btn btn-primary btn-sm"
+                          disabled={isLifting || liftReason.trim().length < 3}
+                          onClick={() => void liftAction(action.id)}
+                          type="button"
+                        >
+                          {isLifting ? "Lifting..." : "Lift action"}
+                        </button>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          disabled={isLifting}
+                          onClick={() => {
+                            setLiftingRecordId("");
+                            setLiftReason("");
+                          }}
+                          type="button"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      className="btn btn-secondary btn-sm mt-3"
+                      disabled={isLifting || isSubmitting}
+                      onClick={() => {
+                        setLiftingRecordId(action.id);
+                        setLiftReason("");
+                      }}
+                      type="button"
+                    >
+                      Lift action
+                    </button>
+                  )
+                ) : null}
+                {isRecordActive(action) && action.type === "delete_user" ? (
+                  <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-900">
+                    Account deletion cannot be restored from this control.
                   </p>
                 ) : null}
               </article>

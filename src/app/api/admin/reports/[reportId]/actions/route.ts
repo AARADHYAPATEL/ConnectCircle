@@ -3,6 +3,7 @@ import { deleteUserByUsername, getUserByUsername } from "@/lib/authStore";
 import { getCurrentAdmin } from "@/lib/adminSession";
 import {
   createModerationRecord,
+  deactivateModerationRecord,
   describeModerationAction,
 } from "@/lib/moderationStore";
 import {
@@ -140,5 +141,82 @@ export async function POST(
 
   return NextResponse.json({
     action: moderationResult.record,
+  });
+}
+
+export async function PATCH(
+  request: Request,
+  context: AdminReportActionRouteContext,
+) {
+  const admin = await getCurrentAdmin();
+
+  if (!admin) {
+    return NextResponse.json(
+      { error: "Admin authentication required." },
+      { status: 401 },
+    );
+  }
+
+  let body: unknown;
+
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  }
+
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  }
+
+  const input = body as Record<string, unknown>;
+  const recordId = cleanText(input.recordId, 120);
+  const reason = cleanText(input.reason, 500);
+
+  if (!recordId) {
+    return NextResponse.json(
+      { error: "Choose a moderation action to lift." },
+      { status: 400 },
+    );
+  }
+
+  const { reportId } = await context.params;
+  const report = await getSafetyReportById(reportId);
+
+  if (!report) {
+    return NextResponse.json(
+      { error: "Report could not be found." },
+      { status: 404 },
+    );
+  }
+
+  const result = await deactivateModerationRecord({
+    deactivatedBy: admin.username,
+    reason,
+    recordId,
+    reportId: report.id,
+  });
+
+  if (result.error || !result.record) {
+    return NextResponse.json(
+      { error: result.error || "Moderation action could not be lifted." },
+      { status: 400 },
+    );
+  }
+
+  const existingNote = report.resolutionNote?.trim();
+  const actionNote = `Lifted ${describeModerationAction(
+    result.record,
+  )}. Reason: ${reason}`;
+
+  await updateSafetyReportStatus(
+    report.id,
+    report.status,
+    admin.username,
+    existingNote ? `${existingNote} ${actionNote}` : actionNote,
+  );
+
+  return NextResponse.json({
+    action: result.record,
   });
 }
