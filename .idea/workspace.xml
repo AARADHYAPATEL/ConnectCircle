@@ -4,34 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="Fixing mood orbit again">
+    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="Adding admin actions">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/next-env.d.ts" beforeDir="false" afterPath="$PROJECT_DIR$/next-env.d.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/admin/reports/[reportId]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/admin/reports/[reportId]/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/auth/google/callback/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/auth/google/callback/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/auth/google/start/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/auth/google/start/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/auth/login/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/auth/login/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/auth/register/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/auth/register/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/chat/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/chat/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/circles/chat/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/circles/chat/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/circles/join-requests/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/circles/join-requests/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/circles/manage/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/circles/manage/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/circles/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/circles/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/connections/manage/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/connections/manage/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/connections/request/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/connections/request/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/connections/respond/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/connections/respond/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/feedback/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/feedback/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/mood-entries/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/mood-entries/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/profile/preferences/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/profile/preferences/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/profile/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/profile/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/reports/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/reports/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/support-messages/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/support-messages/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/auth/AuthForm.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/auth/AuthForm.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/authStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/authStore.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/lib/reportStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/reportStore.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/lib/reportTypes.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/reportTypes.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/session.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/session.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/userAccountStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/userAccountStore.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -62,7 +39,7 @@
     </persistenceIdMap>
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="179" />
+    <option name="cachedIndexableFilesCount" value="181" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="Git.Settings">
@@ -167,7 +144,8 @@
       <workItem from="1778313750706" duration="5247000" />
       <workItem from="1779872863532" duration="189000" />
       <workItem from="1779873094911" duration="2289000" />
-      <workItem from="1779876690063" duration="9758000" />
+      <workItem from="1779876690063" duration="10033000" />
+      <workItem from="1779934253272" duration="393000" />
     </task>
     <task id="LOCAL-00001" summary="This is ConnectCircle, where students can share their mood, send supportive messages to friends and build stronger peer relationships.">
       <option name="closed" value="true" />
@@ -297,7 +275,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779898649560</updated>
     </task>
-    <option name="localTasksCounter" value="17" />
+    <task id="LOCAL-00017" summary="Adding admin actions">
+      <option name="closed" value="true" />
+      <created>1779900221064</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1779900221064</updated>
+    </task>
+    <option name="localTasksCounter" value="18" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -326,7 +312,8 @@
     <MESSAGE value="Deleting junk files" />
     <MESSAGE value="Fixing mood orbit" />
     <MESSAGE value="Fixing mood orbit again" />
-    <option name="LAST_COMMIT_MESSAGE" value="Fixing mood orbit again" />
+    <MESSAGE value="Adding admin actions" />
+    <option name="LAST_COMMIT_MESSAGE" value="Adding admin actions" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

@@ -145,6 +145,84 @@ export default async function AdminReportDetailPage({
               </div>
             </section>
 
+            {report.reportedUserSnapshot ? (
+              <section className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">
+                <p className="text-sm font-semibold uppercase tracking-normal text-slate-500">
+                  Reported user snapshot
+                </p>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <ReportField
+                    label="User ID"
+                    value={report.reportedUserSnapshot.userId}
+                  />
+                  <ReportField
+                    label="Username"
+                    value={`@${report.reportedUserSnapshot.username}`}
+                  />
+                  <ReportField
+                    label="Email"
+                    value={report.reportedUserSnapshot.email}
+                  />
+                  <ReportField
+                    label="Display name"
+                    value={report.reportedUserSnapshot.displayName || "Not set"}
+                  />
+                  <ReportField
+                    label="Account created"
+                    value={formatReportDate(
+                      report.reportedUserSnapshot.accountCreatedAt,
+                    )}
+                  />
+                  <ReportField
+                    label="Last known IP"
+                    value={report.reportedUserSnapshot.lastIp || "Not recorded"}
+                  />
+                  <ReportField
+                    label="Last seen"
+                    value={
+                      report.reportedUserSnapshot.lastSeenAt
+                        ? formatReportDate(report.reportedUserSnapshot.lastSeenAt)
+                        : "Not recorded"
+                    }
+                  />
+                  <ReportField
+                    label="Profile visibility"
+                    value={report.reportedUserSnapshot.profileVisibility}
+                  />
+                  <ReportField
+                    label="Availability"
+                    value={report.reportedUserSnapshot.availabilityStatus}
+                  />
+                  <ReportField
+                    label="Theme"
+                    value={report.reportedUserSnapshot.themePreference}
+                  />
+                  <ReportField
+                    label="Profile image"
+                    value={
+                      report.reportedUserSnapshot.avatarImagePresent
+                        ? "Present"
+                        : "Not set"
+                    }
+                  />
+                  <ReportField
+                    label="User agent"
+                    value={
+                      report.reportedUserSnapshot.lastUserAgent || "Not recorded"
+                    }
+                  />
+                </div>
+                <div className="mt-5">
+                  <p className="text-xs font-bold uppercase tracking-normal text-slate-500">
+                    Bio
+                  </p>
+                  <p className="mt-2 whitespace-pre-wrap rounded-md bg-slate-50 p-4 leading-7 text-slate-700">
+                    {report.reportedUserSnapshot.bio || "No bio was set."}
+                  </p>
+                </div>
+              </section>
+            ) : null}
+
             {report.messageSnapshot ? (
               <section className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">
                 <p className="text-sm font-semibold uppercase tracking-normal text-slate-500">
@@ -201,7 +279,9 @@ export default async function AdminReportDetailPage({
           <div className="grid content-start gap-5">
             <AdminReportActionPanel
               actions={moderationActions}
-              reportedUserIp={reportedUserNetwork?.lastIp}
+              reportedUserIp={
+                report.reportedUserSnapshot?.lastIp ?? reportedUserNetwork?.lastIp
+              }
               reportedUsername={report.reportedUsername}
               reporterIp={report.reporterIp}
               reportId={report.id}

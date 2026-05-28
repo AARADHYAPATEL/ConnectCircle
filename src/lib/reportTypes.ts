@@ -1,4 +1,12 @@
 import type { ChatMediaAttachmentKind } from "@/lib/chatImageAttachments";
+import {
+  availabilityStatusOptions,
+  profileVisibilityOptions,
+  themePreferenceOptions,
+  type AvailabilityStatus,
+  type ProfileVisibility,
+  type ThemePreference,
+} from "@/lib/profileTypes";
 
 export const reportReasons = [
   "bullying_harassment",
@@ -60,6 +68,22 @@ export type ReportMessageSnapshot = {
   messageId: string;
 };
 
+export type ReportedUserSnapshot = {
+  accountCreatedAt: string;
+  availabilityStatus: AvailabilityStatus;
+  avatarImagePresent: boolean;
+  bio: string;
+  displayName: string;
+  email: string;
+  lastIp?: string;
+  lastSeenAt?: string;
+  lastUserAgent?: string;
+  profileVisibility: ProfileVisibility;
+  themePreference: ThemePreference;
+  userId: string;
+  username: string;
+};
+
 export type SafetyReport = {
   id: string;
   reporterUsername: string;
@@ -69,6 +93,7 @@ export type SafetyReport = {
   contextType: ReportContextType;
   contextId: string;
   messageSnapshot?: ReportMessageSnapshot;
+  reportedUserSnapshot?: ReportedUserSnapshot;
   reporterIp?: string;
   reporterUserAgent?: string;
   status: ReportStatus;
@@ -98,5 +123,43 @@ export function isReportStatus(value: unknown): value is ReportStatus {
   return (
     typeof value === "string" &&
     reportStatuses.some((status) => status === value)
+  );
+}
+
+export function isReportedUserSnapshot(
+  value: unknown,
+): value is ReportedUserSnapshot {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const snapshot = value as Partial<ReportedUserSnapshot>;
+
+  return (
+    typeof snapshot.userId === "string" &&
+    typeof snapshot.username === "string" &&
+    typeof snapshot.email === "string" &&
+    typeof snapshot.displayName === "string" &&
+    typeof snapshot.bio === "string" &&
+    typeof snapshot.avatarImagePresent === "boolean" &&
+    typeof snapshot.accountCreatedAt === "string" &&
+    typeof snapshot.profileVisibility === "string" &&
+    profileVisibilityOptions.some(
+      (option) => option === snapshot.profileVisibility,
+    ) &&
+    typeof snapshot.availabilityStatus === "string" &&
+    availabilityStatusOptions.some(
+      (option) => option === snapshot.availabilityStatus,
+    ) &&
+    typeof snapshot.themePreference === "string" &&
+    themePreferenceOptions.some(
+      (option) => option === snapshot.themePreference,
+    ) &&
+    (typeof snapshot.lastIp === "undefined" ||
+      typeof snapshot.lastIp === "string") &&
+    (typeof snapshot.lastSeenAt === "undefined" ||
+      typeof snapshot.lastSeenAt === "string") &&
+    (typeof snapshot.lastUserAgent === "undefined" ||
+      typeof snapshot.lastUserAgent === "string")
   );
 }

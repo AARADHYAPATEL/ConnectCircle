@@ -5,9 +5,10 @@ import {
   getChatMediaAttachmentKind,
   type ChatMediaAttachment,
 } from "@/lib/chatImageAttachments";
-import { getUserByUsername } from "@/lib/authStore";
+import { getUserByUsername, type PublicUser } from "@/lib/authStore";
 import { getChatMessageForReport } from "@/lib/chatStore";
 import { getCircleMessageForReport } from "@/lib/circleStore";
+import { getUserNetworkRecordByUsername } from "@/lib/userNetworkStore";
 import {
   readTursoJsonDocument,
   shouldUseTurso,
@@ -17,10 +18,12 @@ import {
   isReportContextType,
   isReportReason,
   isReportStatus,
+  isReportedUserSnapshot,
   reportDetailsLimit,
   reportReasonOptions,
   type ReportContextType,
   type ReportMessageSnapshot,
+  type ReportedUserSnapshot,
   type ReportReason,
   type ReportStatus,
   type SafetyReport,
@@ -70,6 +73,30 @@ function cleanMetadataText(value: unknown, limit: number) {
     : "";
 }
 
+async function createReportedUserSnapshot(
+  reportedUser: PublicUser,
+): Promise<ReportedUserSnapshot> {
+  const networkRecord = await getUserNetworkRecordByUsername(reportedUser.username);
+
+  return {
+    accountCreatedAt: reportedUser.createdAt,
+    availabilityStatus: reportedUser.availabilityStatus,
+    avatarImagePresent: Boolean(reportedUser.avatarImage),
+    bio: reportedUser.bio,
+    displayName: reportedUser.displayName,
+    email: reportedUser.email,
+    profileVisibility: reportedUser.profileVisibility,
+    themePreference: reportedUser.themePreference,
+    userId: reportedUser.id,
+    username: reportedUser.username,
+    ...(networkRecord?.lastIp ? { lastIp: networkRecord.lastIp } : {}),
+    ...(networkRecord?.lastSeenAt ? { lastSeenAt: networkRecord.lastSeenAt } : {}),
+    ...(networkRecord?.lastUserAgent
+      ? { lastUserAgent: networkRecord.lastUserAgent }
+      : {}),
+  };
+}
+
 function isSafetyReport(value: unknown): value is SafetyReport {
   if (!value || typeof value !== "object") {
     return false;
@@ -90,7 +117,9 @@ function isSafetyReport(value: unknown): value is SafetyReport {
     (typeof report.reporterIp === "undefined" ||
       typeof report.reporterIp === "string") &&
     (typeof report.reporterUserAgent === "undefined" ||
-      typeof report.reporterUserAgent === "string")
+      typeof report.reporterUserAgent === "string") &&
+    (typeof report.reportedUserSnapshot === "undefined" ||
+      isReportedUserSnapshot(report.reportedUserSnapshot))
   );
 }
 
@@ -323,6 +352,7 @@ export async function createSafetyReport(
     details: cleanDetails(input.details),
     contextType: input.contextType,
     contextId: resolvedContext.contextId,
+    reportedUserSnapshot: await createReportedUserSnapshot(reportedUser),
     ...(cleanMetadataText(input.reporterIp, 120)
       ? { reporterIp: cleanMetadataText(input.reporterIp, 120) }
       : {}),
@@ -424,6 +454,30 @@ export function formatSafetyReportText(report: SafetyReport) {
       "Request metadata:",
       `Reporter IP: ${report.reporterIp || "(not recorded)"}`,
       `Reporter user agent: ${report.reporterUserAgent || "(not recorded)"}`,
+      "",
+    );
+  }
+
+  if (report.reportedUserSnapshot) {
+    lines.push(
+      "Reported user snapshot:",
+      `User ID: ${report.reportedUserSnapshot.userId}`,
+      `Username: @${report.reportedUserSnapshot.username}`,
+      `Email: ${report.reportedUserSnapshot.email}`,
+      `Display name: ${report.reportedUserSnapshot.displayName}`,
+      `Bio: ${report.reportedUserSnapshot.bio || "(empty)"}`,
+      `Profile visibility: ${report.reportedUserSnapshot.profileVisibility}`,
+      `Availability: ${report.reportedUserSnapshot.availabilityStatus}`,
+      `Theme preference: ${report.reportedUserSnapshot.themePreference}`,
+      `Account created: ${report.reportedUserSnapshot.accountCreatedAt}`,
+      `Profile image: ${
+        report.reportedUserSnapshot.avatarImagePresent ? "present" : "not set"
+      }`,
+      `Last known IP: ${report.reportedUserSnapshot.lastIp || "(not recorded)"}`,
+      `Last seen: ${report.reportedUserSnapshot.lastSeenAt || "(not recorded)"}`,
+      `Last user agent: ${
+        report.reportedUserSnapshot.lastUserAgent || "(not recorded)"
+      }`,
       "",
     );
   }
