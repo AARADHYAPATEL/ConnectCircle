@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { getChatOverview } from "@/lib/chatStore";
-import { getCircleSummaryForUser } from "@/lib/circleStore";
+import {
+  getCircleMessageNotificationsForUser,
+  getCircleSummaryForUser,
+} from "@/lib/circleStore";
 import { getConnectionSummary } from "@/lib/connectionStore";
 import { getSharedMoodEntries } from "@/lib/moodEntryStore";
 import { getSupportMessageSummary } from "@/lib/supportMessageStore";
@@ -313,6 +316,7 @@ export async function getNotificationSummary(
   const [
     chatOverview,
     circleSummary,
+    circleMessages,
     connectionSummary,
     sharedMoodEntries,
     supportSummary,
@@ -320,6 +324,7 @@ export async function getNotificationSummary(
   ] = await Promise.all([
     getChatOverview(username),
     getCircleSummaryForUser(username),
+    getCircleMessageNotificationsForUser(username),
     getConnectionSummary(username),
     getSharedMoodEntries(username),
     getSupportMessageSummary(username),
@@ -378,12 +383,23 @@ export async function getNotificationSummary(
       href: "/circles",
       createdAt: request.createdAt,
     })),
+    ...circleMessages.map(({ circle, message }) => ({
+      id: `circle-message:${message.id}`,
+      tone: "circle" as const,
+      title: `New message in ${circle.name}`,
+      body: `@${message.fromUsername}: ${preview(
+        message.message,
+        "Shared an attachment.",
+      )}`,
+      href: `/circles/${circle.id}`,
+      createdAt: message.createdAt,
+    })),
     ...circleSummary.circles
       .filter((circle) => !areSameUser(circle.ownerUsername, username))
       .map((circle) => ({
         id: `circle:${circle.id}`,
         tone: "circle" as const,
-      title: "Circle joined",
+        title: "Circle joined",
         body: `You are now part of ${circle.name}.`,
         href: `/circles/${circle.id}`,
         createdAt: circle.createdAt,

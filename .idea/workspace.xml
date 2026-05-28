@@ -4,14 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="Updating notification bell component">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/moderationStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/moderationStore.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/notificationStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/notificationStore.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/reportStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/reportStore.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/tursoStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/tursoStore.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/userNetworkStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/userNetworkStore.ts" afterDir="false" />
-    </list>
+    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="Making data storage more efficient to improve speed." />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -147,7 +140,7 @@
       <workItem from="1779872863532" duration="189000" />
       <workItem from="1779873094911" duration="2289000" />
       <workItem from="1779876690063" duration="10033000" />
-      <workItem from="1779934253272" duration="3704000" />
+      <workItem from="1779934253272" duration="4268000" />
     </task>
     <task id="LOCAL-00001" summary="This is ConnectCircle, where students can share their mood, send supportive messages to friends and build stronger peer relationships.">
       <option name="closed" value="true" />
@@ -317,7 +310,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779937272989</updated>
     </task>
-    <option name="localTasksCounter" value="22" />
+    <task id="LOCAL-00022" summary="Making data storage more efficient to improve speed.">
+      <option name="closed" value="true" />
+      <created>1779938571019</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1779938571019</updated>
+    </task>
+    <option name="localTasksCounter" value="23" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -351,7 +352,8 @@
     <MESSAGE value="Strengthening IP tunneling" />
     <MESSAGE value="Adding admin action revocation actions and fixing admin UI" />
     <MESSAGE value="Updating notification bell component" />
-    <option name="LAST_COMMIT_MESSAGE" value="Updating notification bell component" />
+    <MESSAGE value="Making data storage more efficient to improve speed." />
+    <option name="LAST_COMMIT_MESSAGE" value="Making data storage more efficient to improve speed." />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

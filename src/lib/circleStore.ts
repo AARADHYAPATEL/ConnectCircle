@@ -38,6 +38,7 @@ const dataDirectory = path.join(process.cwd(), ".data");
 const circlesFile = path.join(dataDirectory, "circles.json");
 const circleMessagesTable = "connectcircle_circle_messages";
 const tursoCirclesDocumentKey = "circles";
+const circleMessageNotificationLimit = 20;
 
 let hasEnsuredTursoCircleMessagesSchema = false;
 let hasBackfilledTursoCircleMessages = false;
@@ -414,6 +415,42 @@ async function readTursoCircleMessagesForCircle(circleId: string) {
 
   return result.rows.map((row) =>
     rowToTursoCircleMessage(row, { includeMediaData: true }),
+  );
+}
+
+async function readTursoCircleMessagesForCircles(
+  circleIds: string[],
+  username: string,
+  limit: number,
+) {
+  if (circleIds.length === 0) {
+    return [];
+  }
+
+  await ensureTursoCircleMessagesSchema();
+  await backfillTursoCircleMessagesFromLegacyDocument();
+
+  const circlePlaceholders = circleIds.map(() => "?").join(", ");
+  const result = await getTursoClient().execute({
+    sql: `
+      SELECT
+        id,
+        circle_id,
+        from_username,
+        message,
+        created_at,
+        edited_at
+      FROM ${circleMessagesTable}
+      WHERE circle_id IN (${circlePlaceholders})
+        AND lower(from_username) <> ?
+      ORDER BY created_at DESC
+      LIMIT ?
+    `,
+    args: [...circleIds, normalizeUsername(username), limit],
+  });
+
+  return result.rows.map((row) =>
+    rowToTursoCircleMessage(row, { includeMediaData: false }),
   );
 }
 
@@ -1045,6 +1082,50 @@ export async function getCircleByIdForUser(username: string, circleId: string) {
       (circle) => circle.id === circleId && isMember(circle, username),
     ) ?? null
   );
+}
+
+export async function getCircleMessageNotificationsForUser(username: string) {
+  const metadata = await readCircleMetaData();
+  const circles = metadata.circles.filter((circle) => isMember(circle, username));
+  const circleById = new Map(circles.map((circle) => [circle.id, circle]));
+
+  if (circleById.size === 0) {
+    return [];
+  }
+
+  const messages = shouldUseTurso()
+    ? await readTursoCircleMessagesForCircles(
+        Array.from(circleById.keys()),
+        username,
+        circleMessageNotificationLimit,
+      )
+    : sortMessagesAscending(
+        (await readCircleData()).messages.filter(
+          (message) =>
+            circleById.has(message.circleId) &&
+            !areSameUser(message.fromUsername, username),
+        ),
+      )
+        .reverse()
+        .slice(0, circleMessageNotificationLimit);
+
+  return messages
+    .map((message) => {
+      const circle = circleById.get(message.circleId);
+
+      return circle
+        ? {
+            circle,
+            message,
+          }
+        : null;
+    })
+    .filter(
+      (
+        notification,
+      ): notification is { circle: Circle; message: CircleMessage } =>
+        Boolean(notification),
+    );
 }
 
 export async function getCircleChatThread(
