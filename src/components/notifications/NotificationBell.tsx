@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AppNotification,
   NotificationSummary,
@@ -11,6 +11,9 @@ import type {
 type NotificationBellProps = {
   summary: NotificationSummary;
 };
+
+const visibleNotificationRefreshMs = 10000;
+const hiddenNotificationRefreshMs = 60000;
 
 const toneStyles: Record<
   NotificationTone,
@@ -144,6 +147,7 @@ export function NotificationBell({ summary }: NotificationBellProps) {
   const [notifications, setNotifications] = useState(summary.notifications);
   const [unreadCount, setUnreadCount] = useState(summary.unreadCount);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isRefreshingRef = useRef(false);
   const hasNotifications = notifications.length > 0;
   const hasUnread = unreadCount > 0;
   const trayTitle = useMemo(() => {
@@ -158,30 +162,63 @@ export function NotificationBell({ summary }: NotificationBellProps) {
     return `${unreadCount} new ${unreadCount === 1 ? "update" : "updates"}`;
   }, [hasNotifications, hasUnread, unreadCount]);
 
-  useEffect(() => {
-    const refreshTime = () => {
-      setNow(Date.now());
-    };
-    const refreshNotifications = async () => {
+  const refreshNotifications = useCallback(async () => {
+    if (isRefreshingRef.current) {
+      return;
+    }
+
+    isRefreshingRef.current = true;
+
+    try {
       const response = await fetch("/api/notifications", {
         cache: "no-store",
-      }).catch(() => null);
+      });
 
-      if (!response?.ok) {
+      if (!response.ok) {
         return;
       }
 
       const nextSummary = (await response.json()) as NotificationSummary;
       setNotifications(nextSummary.notifications);
-      setUnreadCount(nextSummary.unreadCount);
-    };
 
+      if (isOpen && nextSummary.unreadCount > 0) {
+        setUnreadCount(0);
+        await fetch("/api/notifications/read", {
+          method: "POST",
+        }).catch(() => {
+          setUnreadCount(nextSummary.unreadCount);
+        });
+        return;
+      }
+
+      setUnreadCount(nextSummary.unreadCount);
+    } catch {
+      return;
+    } finally {
+      isRefreshingRef.current = false;
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    const refreshTime = () => {
+      setNow(Date.now());
+    };
     const timeoutId = window.setTimeout(refreshTime, 0);
     const intervalId = window.setInterval(refreshTime, 60000);
-    const notificationIntervalId = window.setInterval(
-      refreshNotifications,
-      120000,
-    );
+    let notificationIntervalId = 0;
+
+    function startNotificationPolling() {
+      window.clearInterval(notificationIntervalId);
+      notificationIntervalId = window.setInterval(
+        () => void refreshNotifications(),
+        document.hidden ? hiddenNotificationRefreshMs : visibleNotificationRefreshMs,
+      );
+    }
+
+    function refreshSoon() {
+      void refreshNotifications();
+      startNotificationPolling();
+    }
 
     function handlePointerDown(event: PointerEvent) {
       if (
@@ -192,14 +229,27 @@ export function NotificationBell({ summary }: NotificationBellProps) {
       }
     }
 
+    function handleVisibilityChange() {
+      if (!document.hidden) {
+        refreshSoon();
+        return;
+      }
+
+      startNotificationPolling();
+    }
+
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setIsOpen(false);
       }
     }
 
+    refreshSoon();
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", refreshSoon);
+    window.addEventListener("online", refreshSoon);
 
     return () => {
       window.clearTimeout(timeoutId);
@@ -207,23 +257,31 @@ export function NotificationBell({ summary }: NotificationBellProps) {
       window.clearInterval(notificationIntervalId);
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", refreshSoon);
+      window.removeEventListener("online", refreshSoon);
     };
-  }, []);
+  }, [refreshNotifications]);
 
   async function openTray() {
     const nextOpenState = !isOpen;
     setIsOpen(nextOpenState);
 
+    if (nextOpenState) {
+      void refreshNotifications();
+    }
+
     if (!nextOpenState || !hasUnread) {
       return;
     }
 
+    const previousUnreadCount = unreadCount;
     setUnreadCount(0);
 
     await fetch("/api/notifications/read", {
       method: "POST",
     }).catch(() => {
-      setUnreadCount(summary.unreadCount);
+      setUnreadCount(previousUnreadCount);
     });
   }
 
