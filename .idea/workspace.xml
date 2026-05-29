@@ -4,10 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="Integrating Android API">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/connections/respond/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/connections/respond/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/connectionStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/connectionStore.ts" afterDir="false" />
+    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="Adding the cancel friend option in the main website">
+      <change beforePath="$PROJECT_DIR$/src/components/social/ConnectionsPanel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/social/ConnectionsPanel.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -206,7 +204,7 @@
       <workItem from="1779934253272" duration="6658000" />
       <workItem from="1779974129742" duration="3641000" />
       <workItem from="1780031735307" duration="957000" />
-      <workItem from="1780049834053" duration="321000" />
+      <workItem from="1780049834053" duration="816000" />
     </task>
     <task id="LOCAL-00001" summary="This is ConnectCircle, where students can share their mood, send supportive messages to friends and build stronger peer relationships.">
       <option name="closed" value="true" />
@@ -408,7 +406,23 @@
       <option name="project" value="LOCAL" />
       <updated>1780034756359</updated>
     </task>
-    <option name="localTasksCounter" value="26" />
+    <task id="LOCAL-00026" summary="Adding the cancel friend request API route.">
+      <option name="closed" value="true" />
+      <created>1780050187456</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1780050187457</updated>
+    </task>
+    <task id="LOCAL-00027" summary="Adding the cancel friend option in the main website">
+      <option name="closed" value="true" />
+      <created>1780050409428</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1780050409428</updated>
+    </task>
+    <option name="localTasksCounter" value="28" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -446,7 +460,9 @@
     <MESSAGE value="Including circle chat in notificationStore.ts" />
     <MESSAGE value="Adding Cloudinary Storage for media" />
     <MESSAGE value="Integrating Android API" />
-    <option name="LAST_COMMIT_MESSAGE" value="Integrating Android API" />
+    <MESSAGE value="Adding the cancel friend request API route." />
+    <MESSAGE value="Adding the cancel friend option in the main website" />
+    <option name="LAST_COMMIT_MESSAGE" value="Adding the cancel friend option in the main website" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>
