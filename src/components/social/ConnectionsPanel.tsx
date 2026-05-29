@@ -15,7 +15,7 @@ type ConnectionsPanelProps = {
   username: string;
 };
 
-type RequestAction = "accept" | "decline";
+type RequestAction = "accept" | "decline" | "cancel";
 type FriendAction = "remove" | "block" | "unblock" | "remove_block";
 
 type UsernameSuggestion = {
@@ -353,7 +353,9 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
       setSuccessMessage(
         action === "accept"
           ? `You are now connected with @${request.fromUsername}.`
-          : `Request from @${request.fromUsername} declined.`,
+          : action === "decline"
+            ? `Request from @${request.fromUsername} declined.`
+            : `Invitation to @${request.toUsername} cancelled.`,
       );
       await loadConnections();
     } catch (responseError) {
@@ -724,9 +726,21 @@ export function ConnectionsPanel({ username }: ConnectionsPanelProps) {
                   <p className="mt-1 text-sm font-semibold text-slate-500">
                     Waiting since {formatDate(request.createdAt)}
                   </p>
-                  <span className="mt-4 inline-flex rounded-md bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800">
-                    Pending
-                  </span>
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <span className="inline-flex rounded-md bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800">
+                      Pending
+                    </span>
+                    <button
+                      className="btn btn-danger btn-sm"
+                      disabled={respondingRequestId === request.id}
+                      onClick={() => void handleRespond(request, "cancel")}
+                      type="button"
+                    >
+                      {respondingRequestId === request.id
+                        ? "Cancelling..."
+                        : "Cancel request"}
+                    </button>
+                  </div>
                 </article>
               ))
             )}
