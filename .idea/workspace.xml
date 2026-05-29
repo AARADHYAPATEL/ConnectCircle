@@ -4,18 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="Including circle chat in notificationStore.ts">
-      <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
+    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="Adding Cloudinary Storage for media">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/chat/ChatImageAttachmentInput.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/chat/ChatImageAttachmentInput.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/circles/CircleRoomPanel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/circles/CircleRoomPanel.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/feedback/FeedbackForm.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/feedback/FeedbackForm.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/social/ChatPanel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/social/ChatPanel.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/chatImageAttachments.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/chatImageAttachments.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/chatStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/chatStore.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/circleStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/circleStore.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/feedbackEmail.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/feedbackEmail.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -46,7 +38,7 @@
     </persistenceIdMap>
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="188" />
+    <option name="cachedIndexableFilesCount" value="190" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="Git.Settings">
@@ -71,61 +63,61 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.0000263835824985" />
-      <entry key="MS500" value="1.1214134369427042" />
-      <entry key="S2" value="1.5902917157405034" />
-      <entry key="S5" value="1.80989119109026" />
-      <entry key="S10" value="1.899939548575492" />
-      <entry key="S30" value="1.9654677673776821" />
-      <entry key="S60" value="1.982582193700701" />
-      <entry key="M2" value="1.9912528404502563" />
-      <entry key="M5" value="1.9964919115657418" />
-      <entry key="M10" value="1.9982444147430738" />
-      <entry key="M15" value="1.998829267107951" />
-      <entry key="M30" value="1.999414462126675" />
-      <entry key="H1" value="1.9997071881939605" />
-      <entry key="H2" value="1.9998535833780666" />
-      <entry key="H4" value="1.9999267890091086" />
-      <entry key="D1" value="1.9999877977959564" />
-      <entry key="W1" value="1.9999982568188779" />
+      <entry key="MS100" value="1.0793818748062125" />
+      <entry key="MS500" value="2.198997609596238" />
+      <entry key="S2" value="4.927136648278541" />
+      <entry key="S5" value="7.420086119936256" />
+      <entry key="S10" value="9.03275074634283" />
+      <entry key="S30" value="12.057332047478972" />
+      <entry key="S60" value="14.195635330466729" />
+      <entry key="M2" value="15.951387650005358" />
+      <entry key="M5" value="17.740373355571556" />
+      <entry key="M10" value="18.688211168789714" />
+      <entry key="M15" value="19.075944326046617" />
+      <entry key="M30" value="19.5104120126434" />
+      <entry key="H1" value="19.747732914895966" />
+      <entry key="H2" value="19.871919633435585" />
+      <entry key="H4" value="19.935462913789326" />
+      <entry key="D1" value="19.989173921009783" />
+      <entry key="W1" value="19.998451693853166" />
     </decayedCancelled>
     <decayedSelected>
-      <entry key="MS100" value="0.0" />
-      <entry key="MS500" value="0.0" />
-      <entry key="S2" value="0.0" />
-      <entry key="S5" value="0.0" />
-      <entry key="S10" value="0.0" />
-      <entry key="S30" value="0.0" />
-      <entry key="S60" value="0.0" />
-      <entry key="M2" value="0.0" />
-      <entry key="M5" value="0.0" />
-      <entry key="M10" value="0.0" />
-      <entry key="M15" value="0.0" />
-      <entry key="M30" value="0.0" />
-      <entry key="H1" value="0.0" />
-      <entry key="H2" value="0.0" />
-      <entry key="H4" value="0.0" />
-      <entry key="D1" value="0.0" />
-      <entry key="W1" value="0.0" />
+      <entry key="MS100" value="2.7489005380191516E-155" />
+      <entry key="MS500" value="1.224142018414425E-31" />
+      <entry key="S2" value="1.8705010284224795E-8" />
+      <entry key="S5" value="8.105562904133703E-4" />
+      <entry key="S10" value="0.028470270290486717" />
+      <entry key="S30" value="0.30534948844472315" />
+      <entry key="S60" value="0.5525843722407674" />
+      <entry key="M2" value="0.7433601901102636" />
+      <entry key="M5" value="0.888136501886975" />
+      <entry key="M10" value="0.9424099436481852" />
+      <entry key="M15" value="0.961228354503682" />
+      <entry key="M30" value="0.9804225387574903" />
+      <entry key="H1" value="0.9901628849626156" />
+      <entry key="H2" value="0.9950692865135651" />
+      <entry key="H4" value="0.9975315967494786" />
+      <entry key="D1" value="0.9995881756928418" />
+      <entry key="W1" value="0.9999411575698444" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.9460604979242666" />
-      <entry key="MS500" value="1.0667755560923171" />
-      <entry key="S2" value="1.5253740640279982" />
-      <entry key="S5" value="1.7735327043210949" />
-      <entry key="S10" value="1.8795826281826415" />
-      <entry key="S30" value="1.9581488729688714" />
-      <entry key="S60" value="1.9788527798108027" />
-      <entry key="M2" value="1.9893703845894464" />
-      <entry key="M5" value="1.9957346361664097" />
-      <entry key="M10" value="1.9978650587416593" />
-      <entry key="M15" value="1.998576203276955" />
-      <entry key="M30" value="1.9992878502442335" />
-      <entry key="H1" value="1.9996438622512644" />
-      <entry key="H2" value="1.9998219154051315" />
-      <entry key="H4" value="1.9999109537720923" />
-      <entry key="D1" value="1.9999851584160868" />
-      <entry key="W1" value="1.9999978797603568" />
+      <entry key="MS100" value="1.0348855093456113" />
+      <entry key="MS500" value="2.1788010423113713" />
+      <entry key="S2" value="4.915057904665265" />
+      <entry key="S5" value="7.413158287881157" />
+      <entry key="S10" value="9.048795915970452" />
+      <entry key="S30" value="12.329133617676984" />
+      <entry key="S60" value="14.717694092655911" />
+      <entry key="M2" value="16.673957372495316" />
+      <entry key="M5" value="18.61832594412177" />
+      <entry key="M10" value="19.6251249241239" />
+      <entry key="M15" value="20.03340750444192" />
+      <entry key="M30" value="20.488897924784915" />
+      <entry key="H1" value="20.73691323488397" />
+      <entry key="H2" value="20.86649397360543" />
+      <entry key="H4" value="20.93274610823141" />
+      <entry key="D1" value="20.988720566126673" />
+      <entry key="W1" value="20.998386915280125" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
@@ -141,36 +133,36 @@
     <option name="showLibraryContents" value="true" />
     <option name="showScratchesAndConsoles" value="false" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.MCP Project settings loaded": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "codeWithMe.voiceChat.enabledByDefault": "false",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "disable.download.node.interpreter.editor.notification": "true",
-    "git-widget-placeholder": "master",
-    "ignore.virus.scanning.warn.message": "true",
-    "javascript.preferred.runtime.type.id": "node",
-    "js.debugger.nextJs.config.created.client": "true",
-    "js.debugger.nextJs.config.created.server": "true",
-    "junie.onboarding.icon.badge.shown": "true",
-    "kronk.content.tree.expanded.paths": "",
-    "last_opened_file_path": "C:/Program Files/nodejs/node.exe",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "preferences.pluginManager",
-    "to.speed.mode.migration.done": "true",
-    "ts.external.directory.path": "C:\\Users\\Aaradhya Patel\\WebstormProjects\\ConnectCircle\\node_modules\\typescript\\lib",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;disable.download.node.interpreter.editor.notification&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;javascript.preferred.runtime.type.id&quot;: &quot;node&quot;,
+    &quot;js.debugger.nextJs.config.created.client&quot;: &quot;true&quot;,
+    &quot;js.debugger.nextJs.config.created.server&quot;: &quot;true&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;kronk.content.tree.expanded.paths&quot;: &quot;&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Program Files/nodejs/node.exe&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;C:\\Users\\Aaradhya Patel\\WebstormProjects\\ConnectCircle\\node_modules\\typescript\\lib&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RunManager" selected="npm.Next.js: server-side">
     <configuration name="Next.js: debug client-side" type="JavascriptDebugType" uri="http://localhost:3000/">
       <method v="2" />
@@ -212,7 +204,8 @@
       <workItem from="1779873094911" duration="2289000" />
       <workItem from="1779876690063" duration="10033000" />
       <workItem from="1779934253272" duration="6658000" />
-      <workItem from="1779974129742" duration="1114000" />
+      <workItem from="1779974129742" duration="3641000" />
+      <workItem from="1780031735307" duration="602000" />
     </task>
     <task id="LOCAL-00001" summary="This is ConnectCircle, where students can share their mood, send supportive messages to friends and build stronger peer relationships.">
       <option name="closed" value="true" />
@@ -398,7 +391,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779939170714</updated>
     </task>
-    <option name="localTasksCounter" value="24" />
+    <task id="LOCAL-00024" summary="Adding Cloudinary Storage for media">
+      <option name="closed" value="true" />
+      <created>1779975337603</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1779975337603</updated>
+    </task>
+    <option name="localTasksCounter" value="25" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -434,7 +435,8 @@
     <MESSAGE value="Updating notification bell component" />
     <MESSAGE value="Making data storage more efficient to improve speed." />
     <MESSAGE value="Including circle chat in notificationStore.ts" />
-    <option name="LAST_COMMIT_MESSAGE" value="Including circle chat in notificationStore.ts" />
+    <MESSAGE value="Adding Cloudinary Storage for media" />
+    <option name="LAST_COMMIT_MESSAGE" value="Adding Cloudinary Storage for media" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>
