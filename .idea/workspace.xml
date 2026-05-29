@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="Adding the cancel friend option in the main website">
+    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="Fixing the sent invitation tiles again.">
       <change beforePath="$PROJECT_DIR$/src/components/social/ConnectionsPanel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/social/ConnectionsPanel.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -204,7 +204,7 @@
       <workItem from="1779934253272" duration="6658000" />
       <workItem from="1779974129742" duration="3641000" />
       <workItem from="1780031735307" duration="957000" />
-      <workItem from="1780049834053" duration="816000" />
+      <workItem from="1780049834053" duration="1136000" />
     </task>
     <task id="LOCAL-00001" summary="This is ConnectCircle, where students can share their mood, send supportive messages to friends and build stronger peer relationships.">
       <option name="closed" value="true" />
@@ -422,7 +422,15 @@
       <option name="project" value="LOCAL" />
       <updated>1780050409428</updated>
     </task>
-    <option name="localTasksCounter" value="28" />
+    <task id="LOCAL-00028" summary="Fixing the sent invitation tile.">
+      <option name="closed" value="true" />
+      <created>1780050701344</created>
+      <option name="number" value="00028" />
+      <option name="presentableId" value="LOCAL-00028" />
+      <option name="project" value="LOCAL" />
+      <updated>1780050701344</updated>
+    </task>
+    <option name="localTasksCounter" value="29" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -462,7 +470,9 @@
     <MESSAGE value="Integrating Android API" />
     <MESSAGE value="Adding the cancel friend request API route." />
     <MESSAGE value="Adding the cancel friend option in the main website" />
-    <option name="LAST_COMMIT_MESSAGE" value="Adding the cancel friend option in the main website" />
+    <MESSAGE value="Fixing the sent invitation tile." />
+    <MESSAGE value="Fixing the sent invitation tiles again." />
+    <option name="LAST_COMMIT_MESSAGE" value="Fixing the sent invitation tiles again." />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

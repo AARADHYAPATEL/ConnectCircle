@@ -986,49 +986,47 @@ function SentInvitationCard({
   request: ConnectionRequest;
 }) {
   return (
-    <article className="rounded-md border border-amber-200 bg-gradient-to-br from-white via-white to-amber-50/70 p-4 shadow-sm shadow-amber-950/5">
+    <article className="min-w-0 rounded-md border border-amber-200 bg-amber-50/55 p-4 shadow-sm shadow-amber-950/5 dark:border-amber-400/35 dark:bg-amber-400/10 dark:shadow-black/20">
       <div className="flex items-start gap-3">
         <span
           aria-hidden="true"
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-amber-200 bg-amber-50 text-sm font-black text-amber-900"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-amber-200 bg-amber-100 text-sm font-black text-amber-900 dark:border-amber-300/35 dark:bg-amber-300/15 dark:text-amber-100"
         >
           {getInitials("", request.toUsername)}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              className="min-w-0 truncate text-lg font-bold text-slate-950 transition hover:text-teal-700 focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200"
-              href={getProfileHref(request.toUsername)}
-            >
-              @{request.toUsername}
-            </Link>
-            <span className="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-xs font-black uppercase tracking-normal text-amber-800">
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <div className="min-w-0">
+              <Link
+                className="block truncate text-lg font-bold text-slate-950 transition hover:text-teal-700 focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200 dark:text-white dark:hover:text-teal-200"
+                href={getProfileHref(request.toUsername)}
+              >
+                @{request.toUsername}
+              </Link>
+              <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                Sent {formatDate(request.createdAt)}
+              </p>
+            </div>
+            <span className="shrink-0 rounded-md border border-amber-300/60 bg-white/80 px-2.5 py-1 text-xs font-black uppercase tracking-normal text-amber-800 dark:border-amber-300/35 dark:bg-amber-300/10 dark:text-amber-100">
               Pending
             </span>
           </div>
-          <p className="mt-1 text-sm font-semibold text-slate-500">
-            Sent {formatDate(request.createdAt)}
-          </p>
+
+          <div className="mt-4 flex flex-col gap-2 border-t border-amber-200/70 pt-3 dark:border-amber-300/15 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">
+              Waiting for response
+            </p>
+            <button
+              className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-800 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-rose-300 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:border-rose-500/50 dark:hover:bg-rose-950/40 dark:hover:text-rose-100 dark:disabled:border-slate-800 dark:disabled:bg-slate-900/40 dark:disabled:text-slate-500"
+              disabled={isCancelling}
+              onClick={onCancel}
+              type="button"
+            >
+              {isCancelling ? "Cancelling..." : "Cancel"}
+            </button>
+          </div>
         </div>
       </div>
-
-      <div className="mt-4 rounded-md border border-amber-100 bg-white/80 p-3">
-        <p className="text-xs font-black uppercase tracking-normal text-amber-800">
-          Waiting for response
-        </p>
-        <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">
-          This invitation will move into Friends after they accept.
-        </p>
-      </div>
-
-      <button
-        className="mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-800 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-rose-300 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
-        disabled={isCancelling}
-        onClick={onCancel}
-        type="button"
-      >
-        {isCancelling ? "Cancelling..." : "Cancel invitation"}
-      </button>
     </article>
   );
 }
@@ -1041,9 +1039,9 @@ function ConnectionList({
   title: string;
 }) {
   return (
-    <section>
+    <section className="min-w-0">
       <h2 className="text-xl font-bold text-slate-950">{title}</h2>
-      <div className="mt-4 grid gap-3">{children}</div>
+      <div className="mt-4 grid min-w-0 gap-3">{children}</div>
     </section>
   );
 }
