@@ -4,10 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="Adding Cloudinary Storage for media">
+    <list default="true" id="d99259e9-f4d4-4360-afb4-3eaa173e9367" name="Changes" comment="Integrating Android API">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/connections/respond/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/connections/respond/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/connectionStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/connectionStore.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -205,7 +205,8 @@
       <workItem from="1779876690063" duration="10033000" />
       <workItem from="1779934253272" duration="6658000" />
       <workItem from="1779974129742" duration="3641000" />
-      <workItem from="1780031735307" duration="602000" />
+      <workItem from="1780031735307" duration="957000" />
+      <workItem from="1780049834053" duration="321000" />
     </task>
     <task id="LOCAL-00001" summary="This is ConnectCircle, where students can share their mood, send supportive messages to friends and build stronger peer relationships.">
       <option name="closed" value="true" />
@@ -399,7 +400,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779975337603</updated>
     </task>
-    <option name="localTasksCounter" value="25" />
+    <task id="LOCAL-00025" summary="Integrating Android API">
+      <option name="closed" value="true" />
+      <created>1780034756358</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1780034756359</updated>
+    </task>
+    <option name="localTasksCounter" value="26" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -436,7 +445,8 @@
     <MESSAGE value="Making data storage more efficient to improve speed." />
     <MESSAGE value="Including circle chat in notificationStore.ts" />
     <MESSAGE value="Adding Cloudinary Storage for media" />
-    <option name="LAST_COMMIT_MESSAGE" value="Adding Cloudinary Storage for media" />
+    <MESSAGE value="Integrating Android API" />
+    <option name="LAST_COMMIT_MESSAGE" value="Integrating Android API" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

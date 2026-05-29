@@ -753,6 +753,43 @@ export async function respondToConnectionRequest(
   };
 }
 
+export async function cancelConnectionRequest(
+  username: string,
+  requestId: string,
+): Promise<ConnectionMutationResult> {
+  const data = await readConnectionData();
+  const request = data.requests.find(
+    (currentRequest) => currentRequest.id === requestId,
+  );
+
+  if (!request) {
+    return {
+      error: "Connection request was not found.",
+    };
+  }
+
+  if (!areSameUser(request.fromUsername, username)) {
+    return {
+      error: "Only the sender can cancel this connection request.",
+    };
+  }
+
+  if (request.status !== "pending") {
+    return {
+      error: "This connection request has already been handled.",
+    };
+  }
+
+  await writeConnectionData({
+    ...data,
+    requests: data.requests.filter(
+      (currentRequest) => currentRequest.id !== request.id,
+    ),
+  });
+
+  return { error: "" };
+}
+
 export async function removeFriend(
   username: string,
   friendUsername: string,
